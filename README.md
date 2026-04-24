@@ -56,11 +56,14 @@ Azure Cosmos DB for NoSQL
 当前 Azure 部署：
 
 ```text
-Frontend: https://stzygymzy8095.z5.web.core.windows.net/
+Frontend: https://gym.zy8095.io/
+Azure origin: https://stzygymzy8095.z5.web.core.windows.net/
 API:      https://func-zygym-zy8095.azurewebsites.net
 Cosmos:   cosmos-zygym-zy8095 / gymcheckin / items
 RG:       zyGym
 ```
+
+`gym.zy8095.io` 由 Cloudflare proxied CNAME + Worker route 提供。Worker 源码在 [infra/cloudflare-worker.js](/Users/zy8095/Documents/Codex/2026-04-23/chat/zyGym/infra/cloudflare-worker.js:1)，它只代理静态前端到 Azure Storage origin；API 仍直接走 Azure Function。
 
 ## Azure 配置
 
@@ -93,6 +96,14 @@ COSMOS_CONTAINER=items
 ```
 
 没有 `COSMOS_ENDPOINT` 时，API 会回退到本地 JSON 文件。Azure 生产环境一定要配置 Cosmos DB，因为 Functions 文件系统不适合持久保存数据。
+
+Function App CORS 需要允许：
+
+```text
+https://gym.zy8095.io
+https://stzygymzy8095.z5.web.core.windows.net
+http://127.0.0.1:5174
+```
 
 Azure 资源脚本在 [infra/azure-create.sh](/Users/zy8095/Documents/Codex/2026-04-23/chat/zyGym/infra/azure-create.sh:1)，它会创建 Storage Static Website、Function App、Cosmos DB serverless，并用 Function App 的 managed identity 授权 Cosmos。
 

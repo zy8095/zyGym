@@ -7,6 +7,7 @@ The app uses:
 - Azure Storage Static Website for the frontend.
 - Azure Functions for `/api`.
 - Azure Cosmos DB for NoSQL, serverless capacity.
+- Cloudflare DNS + Worker route for `https://gym.zy8095.io`.
 - One Cosmos container named `items` with partition key `/userId`.
 - Document `type` values: `session`, `plan`, `settings`.
 - Function App system-assigned managed identity with Cosmos DB data-plane RBAC.
@@ -63,6 +64,18 @@ COSMOS_CONTAINER
 ```
 
 No Cosmos key or connection string is stored. The Function App uses `DefaultAzureCredential`, which resolves to its system-assigned managed identity in Azure.
+
+## Cloudflare Domain
+
+`gym.zy8095.io` uses a proxied CNAME to the Azure Storage static website origin plus a Worker route:
+
+```text
+DNS:    gym.zy8095.io CNAME stzygymzy8095.z5.web.core.windows.net, proxied
+Route:  gym.zy8095.io/* -> zygym-front-proxy
+Worker: infra/cloudflare-worker.js
+```
+
+The Worker rewrites the upstream host to `stzygymzy8095.z5.web.core.windows.net`. This is needed because Azure Storage static website returns 400 when it receives the custom hostname directly.
 
 ## Runtime Note
 
