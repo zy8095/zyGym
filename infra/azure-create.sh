@@ -2,29 +2,46 @@
 set -euo pipefail
 
 # Managed Identity architecture:
-# - Static Web Apps Standard for frontend.
-# - Bring Your Own Azure Functions for /api because SWA managed functions do not support MI.
+# - Azure Storage Static Website for frontend.
+# - Azure Functions for /api.
 # - Function App system-assigned managed identity gets Cosmos DB data-plane RBAC.
 #
 # Usage:
-#   ./infra/azure-create.sh <resource-group> <region> <static-web-app-name> <function-app-name> <storage-account-name> <cosmos-account-name>
+#   ./infra/azure-create.sh <resource-group> <region> <web-storage-account-name> <function-app-name> <cosmos-account-name>
 #
 # Example:
-#   ./infra/azure-create.sh rg-gym-checkin westus3 swa-gym-checkin func-gym-checkin stgymcheckinzy cosmos-gym-checkin-zy
+#   ./infra/azure-create.sh zyGym westus2 stzygymzy8095 func-zygym-zy8095 cosmos-zygym-zy8095
 
 RESOURCE_GROUP="${1:?resource group is required}"
 LOCATION="${2:?location is required}"
-STATIC_WEB_APP_NAME="${3:?static web app name is required}"
+WEB_STORAGE_ACCOUNT_NAME="${3:?web storage account name is required}"
 FUNCTION_APP_NAME="${4:?function app name is required}"
-STORAGE_ACCOUNT_NAME="${5:?storage account name is required}"
-COSMOS_ACCOUNT_NAME="${6:?cosmos account name is required}"
+COSMOS_ACCOUNT_NAME="${5:?cosmos account name is required}"
 
 DATABASE_NAME="${COSMOS_DATABASE:-gymcheckin}"
 CONTAINER_NAME="${COSMOS_CONTAINER:-items}"
 
+az provider register --namespace Microsoft.DocumentDB --wait
+az provider register --namespace Microsoft.Web --wait
+az provider register --namespace Microsoft.Storage --wait
+
 az group create \
   --name "$RESOURCE_GROUP" \
   --location "$LOCATION"
+
+az storage account create \
+  --name "$WEB_STORAGE_ACCOUNT_NAME" \
+  --resource-group "$RESOURCE_GROUP" \
+  --location "$LOCATION" \
+  --sku Standard_LRS \
+  --kind StorageV2 \
+  --allow-blob-public-access true
+
+az storage blob service-properties update \
+  --account-name "$WEB_STORAGE_ACCOUNT_NAME" \
+  --static-website \
+  --index-document index.html \
+  --404-document index.html
 
 az cosmosdb create \
   --name "$COSMOS_ACCOUNT_NAME" \
@@ -45,17 +62,10 @@ az cosmosdb sql container create \
   --name "$CONTAINER_NAME" \
   --partition-key-path "/userId"
 
-az storage account create \
-  --name "$STORAGE_ACCOUNT_NAME" \
-  --resource-group "$RESOURCE_GROUP" \
-  --location "$LOCATION" \
-  --sku Standard_LRS \
-  --kind StorageV2
-
 az functionapp create \
   --name "$FUNCTION_APP_NAME" \
   --resource-group "$RESOURCE_GROUP" \
-  --storage-account "$STORAGE_ACCOUNT_NAME" \
+  --storage-account "$WEB_STORAGE_ACCOUNT_NAME" \
   --consumption-plan-location "$LOCATION" \
   --functions-version 4 \
   --runtime node \
@@ -84,12 +94,20 @@ ROLE_DEFINITION_ID="$(az cosmosdb sql role definition list \
   --query "[?roleName=='Cosmos DB Built-in Data Contributor'].id | [0]" \
   --output tsv)"
 
-az cosmosdb sql role assignment create \
+ASSIGNMENT_COUNT="$(az cosmosdb sql role assignment list \
   --account-name "$COSMOS_ACCOUNT_NAME" \
   --resource-group "$RESOURCE_GROUP" \
-  --scope "/" \
-  --principal-id "$PRINCIPAL_ID" \
-  --role-definition-id "$ROLE_DEFINITION_ID"
+  --query "[?principalId=='$PRINCIPAL_ID' && roleDefinitionId=='$ROLE_DEFINITION_ID'] | length(@)" \
+  --output tsv)"
+
+if [[ "$ASSIGNMENT_COUNT" == "0" ]]; then
+  az cosmosdb sql role assignment create \
+    --account-name "$COSMOS_ACCOUNT_NAME" \
+    --resource-group "$RESOURCE_GROUP" \
+    --scope "/" \
+    --principal-id "$PRINCIPAL_ID" \
+    --role-definition-id "$ROLE_DEFINITION_ID"
+fi
 
 az functionapp config appsettings set \
   --name "$FUNCTION_APP_NAME" \
@@ -99,27 +117,21 @@ az functionapp config appsettings set \
     COSMOS_DATABASE="$DATABASE_NAME" \
     COSMOS_CONTAINER="$CONTAINER_NAME"
 
-az staticwebapp create \
-  --name "$STATIC_WEB_APP_NAME" \
+WEB_URL="$(az storage account show \
+  --name "$WEB_STORAGE_ACCOUNT_NAME" \
   --resource-group "$RESOURCE_GROUP" \
-  --location "$LOCATION" \
-  --sku Standard
-
-FUNCTION_RESOURCE_ID="$(az functionapp show \
-  --name "$FUNCTION_APP_NAME" \
-  --resource-group "$RESOURCE_GROUP" \
-  --query id \
+  --query primaryEndpoints.web \
   --output tsv)"
 
-az staticwebapp functions link \
-  --name "$STATIC_WEB_APP_NAME" \
+az functionapp cors add \
+  --name "$FUNCTION_APP_NAME" \
   --resource-group "$RESOURCE_GROUP" \
-  --function-resource-id "$FUNCTION_RESOURCE_ID"
+  --allowed-origins "${WEB_URL%/}"
 
 echo "Created resources:"
 echo "  Resource group: $RESOURCE_GROUP"
-echo "  Static Web App: $STATIC_WEB_APP_NAME"
-echo "  Function App: $FUNCTION_APP_NAME"
+echo "  Frontend: $WEB_URL"
+echo "  Function App: https://$FUNCTION_APP_NAME.azurewebsites.net"
 echo "  Function principalId: $PRINCIPAL_ID"
 echo "  Cosmos account: $COSMOS_ACCOUNT_NAME"
 echo "  Database: $DATABASE_NAME"

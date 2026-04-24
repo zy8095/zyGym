@@ -93,7 +93,7 @@ async function settingsHandler(req) {
 }
 
 async function healthHandler() {
-  const hasCosmos = Boolean(process.env.COSMOS_ENDPOINT && process.env.COSMOS_KEY);
+  const hasCosmos = Boolean(process.env.COSMOS_ENDPOINT);
   return json(200, {
     ok: true,
     store: hasCosmos ? "cosmos" : "file",

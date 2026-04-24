@@ -5,7 +5,7 @@
 ## 本地运行
 
 ```bash
-cd gym-checkin-app
+cd zyGym
 node tools/dev-server.mjs
 ```
 
@@ -16,7 +16,7 @@ node tools/dev-server.mjs
 本地记录会写到：
 
 ```text
-gym-checkin-app/data/gym-checkin.local.json
+zyGym/data/gym-checkin.local.json
 ```
 
 ## 当前功能
@@ -35,10 +35,10 @@ gym-checkin-app/data/gym-checkin.local.json
 推荐：
 
 ```text
-Azure Static Web Apps Standard
+Azure Storage Static Website
   web/ 静态前端
 
-Bring Your Own Azure Functions
+Azure Functions
   api/ Functions backend
   system-assigned managed identity
 
@@ -51,17 +51,28 @@ Azure Cosmos DB for NoSQL
 
 不用 Azure Static Web Apps database connections。Microsoft Learn 上这个功能已经有退役通知，结束日期是 2025-11-30；这个项目直接用 Functions API 访问数据库。
 
-不用 Cosmos key / connection string。Static Web Apps 的 managed functions 不支持 managed identity，所以生产环境用 Static Web Apps Standard + Bring Your Own Functions。Functions App 开系统托管身份，然后给它 Cosmos DB data-plane RBAC 的 `Cosmos DB Built-in Data Contributor`。
+不用 Cosmos key / connection string。前端只是静态文件，API 跑在独立 Function App 里。Function App 开 system-assigned managed identity，然后给它 Cosmos DB data-plane RBAC 的 `Cosmos DB Built-in Data Contributor`。
+
+当前 Azure 部署：
+
+```text
+Frontend: https://stzygymzy8095.z5.web.core.windows.net/
+API:      https://func-zygym-zy8095.azurewebsites.net
+Cosmos:   cosmos-zygym-zy8095 / gymcheckin / items
+RG:       zyGym
+```
 
 ## Azure 配置
 
-在 Azure Static Web Apps 创建项目时：
+前端通过 `web/config.json` 决定 API base URL：
 
-| 设置 | 值 |
-|---|---|
-| App location | `gym-checkin-app/web` |
-| API location | 留空，使用 linked Function App |
-| Output location | 留空 |
+```json
+{
+  "apiBaseUrl": "https://func-zygym-zy8095.azurewebsites.net"
+}
+```
+
+本地开发可以保留空字符串，让前端请求同源 `/api`。
 
 Cosmos DB 容器建议：
 
@@ -83,7 +94,17 @@ COSMOS_CONTAINER=items
 
 没有 `COSMOS_ENDPOINT` 时，API 会回退到本地 JSON 文件。Azure 生产环境一定要配置 Cosmos DB，因为 Functions 文件系统不适合持久保存数据。
 
-Azure 资源脚本在 [infra/azure-create.sh](/Users/zy8095/Documents/Codex/2026-04-23/chat/gym-checkin-app/infra/azure-create.sh:1)，它会创建 Static Web Apps Standard、Function App、Cosmos DB serverless，并用 Function App 的 managed identity 授权 Cosmos。
+Azure 资源脚本在 [infra/azure-create.sh](/Users/zy8095/Documents/Codex/2026-04-23/chat/zyGym/infra/azure-create.sh:1)，它会创建 Storage Static Website、Function App、Cosmos DB serverless，并用 Function App 的 managed identity 授权 Cosmos。
+
+部署 API 时需要远端 build，确保 `@azure/cosmos` 和 `@azure/identity` 被安装：
+
+```bash
+az functionapp deployment source config-zip \
+  -g zyGym \
+  -n func-zygym-zy8095 \
+  --src .deploy/api.zip \
+  --build-remote true
+```
 
 ## 后续可加
 
@@ -96,7 +117,5 @@ Azure 资源脚本在 [infra/azure-create.sh](/Users/zy8095/Documents/Codex/2026
 
 ## 参考
 
-- [Azure Static Web Apps API support with Azure Functions](https://learn.microsoft.com/en-us/azure/static-web-apps/apis-functions)
-- [Bring your own functions to Azure Static Web Apps](https://learn.microsoft.com/en-us/azure/static-web-apps/functions-bring-your-own)
 - [Azure Cosmos DB serverless](https://learn.microsoft.com/en-us/azure/cosmos-db/serverless)
 - [Azure Static Web Apps database connections retirement notice](https://learn.microsoft.com/en-us/azure/static-web-apps/database-overview)

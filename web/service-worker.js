@@ -6,6 +6,7 @@ const ASSETS = [
   "/app.js?v=20260424c",
   "/manifest.webmanifest",
   "/assets/icon.svg",
+  "/config.json",
   "/data/equipment.json",
   "/data/plans/current.json"
 ];
@@ -27,7 +28,10 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (url.pathname.startsWith("/api/")) return;
-  if (event.request.mode === "navigate" || ["/app.js", "/styles.css", "/index.html"].some((path) => url.pathname === path)) {
+  if (
+    event.request.mode === "navigate" ||
+    ["/app.js", "/styles.css", "/index.html", "/config.json"].some((path) => url.pathname === path)
+  ) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {

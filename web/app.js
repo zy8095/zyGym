@@ -19,6 +19,7 @@ const state = {
   draft: loadDraft(),
   equipment: {},
   plan: null,
+  config: { apiBaseUrl: "" },
   apiOnline: false
 };
 
@@ -27,6 +28,7 @@ init();
 async function init() {
   bindShell();
   renderLoading();
+  await loadConfig();
   await Promise.all([loadEquipment(), loadPlan(), loadRemoteSessions()]);
   state.selectedPlan = todayWorkoutId();
   render();
@@ -55,9 +57,17 @@ async function loadEquipment() {
   state.equipment = Object.fromEntries((data.items || []).map((item) => [item.id, item]));
 }
 
+async function loadConfig() {
+  try {
+    state.config = { ...state.config, ...(await fetchJson("/config.json")) };
+  } catch {
+    state.config = { apiBaseUrl: "" };
+  }
+}
+
 async function loadPlan(showErrors = false) {
   try {
-    const data = await fetchJson("/api/plans");
+    const data = await fetchJson(apiUrl("/plans"));
     state.plan = data.plan;
     state.apiOnline = true;
     localStorage.setItem(STORAGE_KEYS.plan, JSON.stringify(state.plan));
@@ -70,7 +80,7 @@ async function loadPlan(showErrors = false) {
 
 async function loadRemoteSessions(showErrors = false) {
   try {
-    const data = await fetchJson("/api/sessions?limit=200");
+    const data = await fetchJson(apiUrl("/sessions?limit=200"));
     state.sessions = Array.isArray(data.sessions) ? data.sessions : [];
     state.apiOnline = true;
     localStorage.setItem(STORAGE_KEYS.sessions, JSON.stringify(state.sessions));
@@ -509,7 +519,7 @@ async function saveSimpleWorkout(workout) {
 
 async function saveSession(session) {
   try {
-    await fetchJson("/api/sessions", {
+    await fetchJson(apiUrl("/sessions"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(session)
@@ -526,7 +536,7 @@ async function saveSession(session) {
 
 async function savePlan(plan) {
   try {
-    const data = await fetchJson("/api/plans", {
+    const data = await fetchJson(apiUrl("/plans"), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(plan)
@@ -542,7 +552,7 @@ async function savePlan(plan) {
 
 async function saveSettings(settings) {
   try {
-    await fetchJson("/api/settings", {
+    await fetchJson(apiUrl("/settings"), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(settings)
@@ -629,6 +639,11 @@ function weeklyStrengthCount() {
 
 function equipmentFor(id) {
   return state.equipment[id] || { id, name: id, label: id, image: "/assets/icon.svg" };
+}
+
+function apiUrl(path) {
+  const base = (state.config.apiBaseUrl || "").replace(/\/$/, "");
+  return `${base}/api${path}`;
 }
 
 function currentWorkout() {
