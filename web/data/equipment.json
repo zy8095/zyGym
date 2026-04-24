@@ -1,0 +1,145 @@
+{
+  "updatedAt": "2026-04-24",
+  "items": [
+    {
+      "id": "IMG_1172",
+      "name": "Precor Converging Chest Press",
+      "label": "坐姿推胸",
+      "category": "胸 / 推",
+      "image": "/assets/equipment/IMG_1172.jpg"
+    },
+    {
+      "id": "IMG_1187",
+      "name": "Life Fitness Pectoral Fly / Rear Deltoid",
+      "label": "蝴蝶机 / 后束",
+      "category": "胸 / 肩后束",
+      "image": "/assets/equipment/IMG_1187.jpg"
+    },
+    {
+      "id": "IMG_1199",
+      "name": "Life Fitness Fly",
+      "label": "蝴蝶夹胸",
+      "category": "胸 / 推",
+      "image": "/assets/equipment/IMG_1199.jpg"
+    },
+    {
+      "id": "IMG_1173",
+      "name": "Precor Converging Shoulder Press",
+      "label": "坐姿推肩",
+      "category": "肩",
+      "image": "/assets/equipment/IMG_1173.jpg"
+    },
+    {
+      "id": "IMG_1175",
+      "name": "Precor Lateral Raise",
+      "label": "侧平举",
+      "category": "肩",
+      "image": "/assets/equipment/IMG_1175.jpg"
+    },
+    {
+      "id": "IMG_1178",
+      "name": "Precor Seated Dip",
+      "label": "坐姿臂屈伸",
+      "category": "手臂 / 推",
+      "image": "/assets/equipment/IMG_1178.jpg"
+    },
+    {
+      "id": "IMG_1207",
+      "name": "Life Fitness Triceps Press",
+      "label": "三头补量",
+      "category": "手臂",
+      "image": "/assets/equipment/IMG_1207.jpg"
+    },
+    {
+      "id": "IMG_1202",
+      "name": "Life Fitness Seated Leg Press",
+      "label": "腿举",
+      "category": "腿 / 臀",
+      "image": "/assets/equipment/IMG_1202.jpg"
+    },
+    {
+      "id": "IMG_1159",
+      "name": "Precor Leg Extension",
+      "label": "腿伸展",
+      "category": "腿",
+      "image": "/assets/equipment/IMG_1159.jpg"
+    },
+    {
+      "id": "IMG_1165",
+      "name": "Precor Prone Leg Curl",
+      "label": "俯卧腿弯举",
+      "category": "腿",
+      "image": "/assets/equipment/IMG_1165.jpg"
+    },
+    {
+      "id": "IMG_1191",
+      "name": "Life Fitness Glute",
+      "label": "臀部训练",
+      "category": "臀",
+      "image": "/assets/equipment/IMG_1191.jpg"
+    },
+    {
+      "id": "IMG_1163",
+      "name": "Precor Seated Calf Extension",
+      "label": "坐姿提踵",
+      "category": "小腿",
+      "image": "/assets/equipment/IMG_1163.jpg"
+    },
+    {
+      "id": "IMG_1180",
+      "name": "Precor Rotary Torso",
+      "label": "旋转核心",
+      "category": "核心",
+      "image": "/assets/equipment/IMG_1180.jpg"
+    },
+    {
+      "id": "IMG_1162",
+      "name": "Precor Abdominal Crunch",
+      "label": "卷腹",
+      "category": "核心",
+      "image": "/assets/equipment/IMG_1162.jpg"
+    },
+    {
+      "id": "IMG_1179",
+      "name": "Precor Diverging Lat Pulldown",
+      "label": "高位下拉",
+      "category": "背 / 拉",
+      "image": "/assets/equipment/IMG_1179.jpg"
+    },
+    {
+      "id": "IMG_1171",
+      "name": "Precor Diverging Seated Row",
+      "label": "坐姿划船",
+      "category": "背 / 拉",
+      "image": "/assets/equipment/IMG_1171.jpg"
+    },
+    {
+      "id": "IMG_1174",
+      "name": "Precor Diverging Low Row",
+      "label": "低位划船",
+      "category": "背 / 拉",
+      "image": "/assets/equipment/IMG_1174.jpg"
+    },
+    {
+      "id": "IMG_1188",
+      "name": "Life Fitness Rear Deltoid",
+      "label": "后束",
+      "category": "肩后束",
+      "image": "/assets/equipment/IMG_1188.jpg"
+    },
+    {
+      "id": "IMG_1177",
+      "name": "Precor Biceps Curl",
+      "label": "二头弯举",
+      "category": "手臂 / 拉",
+      "image": "/assets/equipment/IMG_1177.jpg"
+    },
+    {
+      "id": "IMG_1166",
+      "name": "Precor Back Extension",
+      "label": "背伸展",
+      "category": "核心 / 后链",
+      "image": "/assets/equipment/IMG_1166.jpg"
+    }
+  ]
+}

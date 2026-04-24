@@ -1,0 +1,13 @@
+{
+  "name": "gym-checkin-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@azure/cosmos": "^4.0.0",
+    "@azure/identity": "^4.6.0"
+  }
+}

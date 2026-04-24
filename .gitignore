@@ -1,0 +1,6 @@
+/data/
+/assets/
+web/assets/equipment/*.png
+node_modules/
+.env
+dist/

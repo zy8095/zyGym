@@ -1,0 +1,83 @@
+{
+  "id": "plan-2026-w17",
+  "type": "plan",
+  "name": "2026 W17 推 / 腿 / 拉",
+  "version": "2026-04-24-ppl-v2",
+  "active": true,
+  "createdAt": "2026-04-24T00:00:00.000Z",
+  "schedule": [
+    { "day": 0, "workoutId": "rest", "label": "休息", "short": "日" },
+    { "day": 1, "workoutId": "push", "label": "推", "short": "一" },
+    { "day": 2, "workoutId": "zone2", "label": "Zone 2", "short": "二" },
+    { "day": 3, "workoutId": "legs", "label": "腿", "short": "三" },
+    { "day": 4, "workoutId": "zone2", "label": "Zone 2", "short": "四" },
+    { "day": 5, "workoutId": "pull", "label": "拉", "short": "五" },
+    { "day": 6, "workoutId": "pilates", "label": "普拉提", "short": "六" }
+  ],
+  "workouts": {
+    "push": {
+      "id": "push",
+      "name": "推：胸 + 肩 + 三头",
+      "kind": "strength",
+      "focus": "18 组",
+      "exercises": [
+        { "id": "chest-press-precor", "name": "坐姿推胸", "equipmentId": "IMG_1172", "sets": 4, "repMin": 8, "repMax": 10, "cue": "胸主项，肩胛稳定", "priority": "main" },
+        { "id": "pec-fly", "name": "蝴蝶夹胸", "equipmentId": "IMG_1187", "alternateEquipmentIds": ["IMG_1199"], "sets": 3, "repMin": 10, "repMax": 12, "cue": "胸孤立补量，不要肩前顶", "priority": "support" },
+        { "id": "shoulder-press-precor", "name": "坐姿推肩", "equipmentId": "IMG_1173", "sets": 3, "repMin": 8, "repMax": 10, "cue": "肩前束主项，别顶腰", "priority": "main" },
+        { "id": "lateral-raise-precor", "name": "侧平举", "equipmentId": "IMG_1175", "sets": 3, "repMin": 12, "repMax": 15, "cue": "轻重量慢控制，别耸肩", "priority": "support" },
+        { "id": "seated-dip-precor", "name": "坐姿臂屈伸", "equipmentId": "IMG_1178", "sets": 3, "repMin": 10, "repMax": 12, "cue": "三头主项，肘路稳定", "priority": "support" },
+        { "id": "triceps-press-lf", "name": "三头补量", "equipmentId": "IMG_1207", "sets": 2, "repMin": 12, "repMax": 15, "cue": "慢放，别用身体压", "priority": "optional" }
+      ]
+    },
+    "legs": {
+      "id": "legs",
+      "name": "腿 + 核心",
+      "kind": "strength",
+      "focus": "22 组",
+      "exercises": [
+        { "id": "seated-leg-press-lf", "name": "腿举", "equipmentId": "IMG_1202", "sets": 4, "repMin": 8, "repMax": 12, "cue": "腿主项，膝盖跟脚尖一致", "priority": "main" },
+        { "id": "leg-extension-precor", "name": "腿伸展", "equipmentId": "IMG_1159", "sets": 3, "repMin": 10, "repMax": 12, "cue": "股四头孤立，不要弹膝", "priority": "support" },
+        { "id": "prone-leg-curl-precor", "name": "俯卧腿弯举", "equipmentId": "IMG_1165", "sets": 3, "repMin": 10, "repMax": 12, "cue": "腘绳肌，顶峰停一下", "priority": "support" },
+        { "id": "glute-lf", "name": "臀部训练", "equipmentId": "IMG_1191", "sets": 3, "repMin": 10, "repMax": 15, "cue": "臀大肌，腰别代偿", "priority": "support" },
+        { "id": "calf-extension-precor", "name": "坐姿提踵", "equipmentId": "IMG_1163", "sets": 3, "repMin": 12, "repMax": 15, "cue": "底部拉伸，顶部停顿", "priority": "optional" },
+        { "id": "rotary-torso-precor", "name": "旋转核心", "equipmentId": "IMG_1180", "sets": 3, "repMin": 12, "repMax": 12, "cue": "每侧 12 次，动作慢", "priority": "optional" },
+        { "id": "ab-crunch-precor", "name": "卷腹", "equipmentId": "IMG_1162", "sets": 3, "repMin": 12, "repMax": 15, "cue": "卷肋骨，不拉脖子", "priority": "optional" }
+      ]
+    },
+    "pull": {
+      "id": "pull",
+      "name": "拉：背 + 二头 + 后链",
+      "kind": "strength",
+      "focus": "20 组",
+      "exercises": [
+        { "id": "lat-pulldown-precor", "name": "高位下拉", "equipmentId": "IMG_1179", "sets": 4, "repMin": 8, "repMax": 10, "cue": "背宽度主项，别用腰甩", "priority": "main" },
+        { "id": "seated-row-precor", "name": "坐姿划船", "equipmentId": "IMG_1171", "sets": 4, "repMin": 8, "repMax": 10, "cue": "背厚度主项，肩胛向后收", "priority": "main" },
+        { "id": "low-row-precor", "name": "低位划船", "equipmentId": "IMG_1174", "sets": 3, "repMin": 10, "repMax": 12, "cue": "不同角度背部补量", "priority": "support" },
+        { "id": "rear-delt-lf", "name": "后束", "equipmentId": "IMG_1188", "sets": 3, "repMin": 12, "repMax": 15, "cue": "肩后束，帮助体态", "priority": "support" },
+        { "id": "biceps-curl-precor", "name": "二头弯举", "equipmentId": "IMG_1177", "sets": 3, "repMin": 10, "repMax": 12, "cue": "上臂贴稳，控制离心", "priority": "support" },
+        { "id": "back-extension-precor", "name": "背伸展", "equipmentId": "IMG_1166", "sets": 3, "repMin": 12, "repMax": 15, "cue": "后链和下背，慢控制", "priority": "optional" }
+      ]
+    },
+    "zone2": {
+      "id": "zone2",
+      "name": "Zone 2 有氧",
+      "kind": "cardio",
+      "focus": "40 分钟",
+      "cues": ["能说完整句子", "不要做成 HIIT", "跑步机坡走、椭圆机、自行车都可以"]
+    },
+    "pilates": {
+      "id": "pilates",
+      "name": "普拉提 / 姿态与活动度",
+      "kind": "mobility",
+      "focus": "低到中强度",
+      "cues": ["Beginner / posture / mobility 优先", "重点：胸椎伸展、肩胛控制、核心抗伸展", "不要选爆汗燃脂课"]
+    },
+    "rest": {
+      "id": "rest",
+      "name": "休息 / 轻松散步",
+      "kind": "rest",
+      "focus": "恢复",
+      "cues": ["散步可以", "认真休息也可以", "如果体重停 2-3 周，再加 30-40 分钟 Zone 2"]
+    }
+  }
+}
