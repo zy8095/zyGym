@@ -1,9 +1,11 @@
 const { json, readBody, getQuery } = require("./http");
 const { getStore } = require("./store");
-const { getDisplayUser, getUserId } = require("./user");
+const { getDisplayUser, getUser } = require("./user");
 
 async function sessionsHandler(req) {
-  const userId = getUserId(req);
+  const auth = requireUser(req);
+  if (auth.response) return auth.response;
+  const userId = auth.userId;
   const store = getStore();
 
   if (req.method === "GET") {
@@ -32,7 +34,9 @@ async function sessionsHandler(req) {
 }
 
 async function plansHandler(req) {
-  const userId = getUserId(req);
+  const auth = requireUser(req);
+  if (auth.response) return auth.response;
+  const userId = auth.userId;
   const store = getStore();
 
   if (req.method === "GET") {
@@ -60,7 +64,9 @@ async function plansHandler(req) {
 }
 
 async function progressHandler(req) {
-  const userId = getUserId(req);
+  const auth = requireUser(req);
+  if (auth.response) return auth.response;
+  const userId = auth.userId;
   const store = getStore();
   const equipmentId = getQuery(req, "equipmentId");
   const exerciseId = getQuery(req, "exerciseId");
@@ -75,7 +81,9 @@ async function progressHandler(req) {
 }
 
 async function equipmentHandler(req) {
-  const userId = getUserId(req);
+  const auth = requireUser(req);
+  if (auth.response) return auth.response;
+  const userId = auth.userId;
   const store = getStore();
 
   if (req.method === "GET") {
@@ -96,7 +104,9 @@ async function equipmentHandler(req) {
 }
 
 async function settingsHandler(req) {
-  const userId = getUserId(req);
+  const auth = requireUser(req);
+  if (auth.response) return auth.response;
+  const userId = auth.userId;
   const store = getStore();
 
   if (req.method === "GET") {
@@ -114,7 +124,7 @@ async function settingsHandler(req) {
 }
 
 async function meHandler(req) {
-  return json(200, { user: getDisplayUser(req) });
+  return json(200, { authRequired: isAuthRequired(), user: getDisplayUser(req) });
 }
 
 async function healthHandler() {
@@ -128,6 +138,22 @@ async function healthHandler() {
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
+}
+
+function requireUser(req) {
+  const user = getUser(req);
+  if (user?.id) return { userId: user.id, user };
+  if (!isAuthRequired()) {
+    return {
+      userId: "local-user",
+      user: { id: "local-user", name: "Local User", provider: "local", authenticated: false }
+    };
+  }
+  return { response: json(401, { error: "login required" }) };
+}
+
+function isAuthRequired() {
+  return String(process.env.AUTH_REQUIRED || "").toLowerCase() === "true";
 }
 
 module.exports = { sessionsHandler, plansHandler, progressHandler, equipmentHandler, settingsHandler, meHandler, healthHandler };

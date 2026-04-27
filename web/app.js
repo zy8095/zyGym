@@ -23,7 +23,7 @@ const state = {
   editingEquipmentId: "",
   plan: null,
   user: null,
-  config: { apiBaseUrl: "", useCredentials: false },
+  config: { apiBaseUrl: "", useCredentials: false, requireAuth: false },
   apiOnline: false
 };
 
@@ -76,9 +76,9 @@ async function loadEquipment() {
 async function loadUser() {
   try {
     const data = await fetchJson(apiUrl("/me"));
-    state.user = data.user;
+    state.user = { ...data.user, authRequired: Boolean(data.authRequired) };
   } catch {
-    state.user = { id: "local-user", name: "Local User", provider: "local", authenticated: false };
+    state.user = { id: "local-user", name: "Local User", provider: "local", authenticated: false, authRequired: state.config.requireAuth };
   }
 }
 
@@ -134,9 +134,17 @@ async function fetchJson(url, options) {
 }
 
 function render() {
-  const current = currentWorkout();
   const date = new Date();
   todayLabel.textContent = `${formatWeekday(date)} · ${formatDate(date)}`;
+
+  if (loginRequired() && !state.user?.authenticated) {
+    title.textContent = "登录";
+    tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.route === "settings"));
+    renderLoginGate();
+    return;
+  }
+
+  const current = currentWorkout();
   title.textContent = state.route === "today" ? current.name : routeTitle(state.route);
 
   tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.route === state.route));
@@ -146,6 +154,34 @@ function render() {
   if (state.route === "plan") renderPlan();
   if (state.route === "history") renderHistory();
   if (state.route === "settings") renderSettings();
+}
+
+function renderLoginGate() {
+  app.innerHTML = `
+    <section class="panel hero-card">
+      <div>
+        <p class="eyebrow">zyGym</p>
+        <h2>先登录再训练</h2>
+        <p class="muted">你的计划、设备库和训练记录都会按 Microsoft 账号分开保存。</p>
+      </div>
+      <div class="metric-grid">
+        <div class="metric"><strong>私有</strong><span class="metric-label">数据</span></div>
+        <div class="metric"><strong>Cosmos</strong><span class="metric-label">存储</span></div>
+        <div class="metric"><strong>MI</strong><span class="metric-label">后端</span></div>
+      </div>
+    </section>
+    <section class="panel">
+      <h2>账号</h2>
+      <p class="cue">当前状态：未登录。登录完成后会自动回到这个页面。</p>
+      <div class="action-row">
+        <button class="primary-button" type="button" data-login>Microsoft 登录</button>
+      </div>
+    </section>
+  `;
+
+  app.querySelector("[data-login]").addEventListener("click", () => {
+    window.location.href = loginUrl();
+  });
 }
 
 function renderLoading() {
@@ -193,6 +229,11 @@ function renderStrength(workout, isToday = false) {
   state.draft[draftKey] = draft;
   persistDraft();
 
+  if (isToday) {
+    renderStrengthDeck(workout, draftKey);
+    return;
+  }
+
   const visibleExercises = orderedExercises(workout.exercises, draft).filter((item) => activeSetCount(item, draft.lowEnergy) > 0);
   const setCount = visibleExercises.reduce((sum, item) => sum + activeSetCount(item, draft.lowEnergy), 0);
   const completeCount = countCompleteSets(draft);
@@ -234,6 +275,238 @@ function renderStrength(workout, isToday = false) {
   `;
 
   bindStrength(workout, draftKey);
+}
+
+function renderStrengthDeck(workout, draftKey) {
+  const draft = state.draft[draftKey];
+  const visibleExercises = orderedExercises(workout.exercises, draft).filter((item) => activeSetCount(item, draft.lowEnergy) > 0);
+  const setCount = visibleExercises.reduce((sum, item) => sum + activeSetCount(item, draft.lowEnergy), 0);
+  const completeCount = countVisibleCompleteSets(visibleExercises, draft);
+  const lastSame = state.sessions.find((session) => session.workoutId === workout.id);
+  const current = activeDeckExercise(visibleExercises, draft);
+
+  if (!current) {
+    app.innerHTML = `<section class="panel"><h2>今天没有力量项目</h2><p class="muted">可以休息或者做 Zone 2。</p></section>`;
+    return;
+  }
+
+  const actualEquipmentId = currentEquipmentId(current, draft);
+  const equipment = equipmentFor(actualEquipmentId);
+  const planned = equipmentFor(current.equipmentId);
+  const meta = exerciseMeta(draft, current.id);
+  const setTotal = activeSetCount(current, draft.lowEnergy);
+  const setIndex = currentSetIndex(current, draft);
+  const entry = ensureSetEntry(draft, current.id, setIndex);
+  const doneForExercise = completeSetsForExercise(current, draft);
+  const options = replacementOptions(current, actualEquipmentId);
+  const note = progressionNote(current, workout.id, actualEquipmentId);
+
+  app.innerHTML = `
+    <section class="panel hero-card">
+      <div>
+        <p class="eyebrow">今日训练</p>
+        <h2>${workout.name}</h2>
+        <p class="muted">${lastSame ? `上次：${formatDate(new Date(lastSame.completedAt || lastSame.date))}` : "还没有同类训练记录"}</p>
+      </div>
+      <div class="metric-grid">
+        <div class="metric"><strong>${completeCount}</strong><span class="metric-label">已完成</span></div>
+        <div class="metric"><strong>${setCount}</strong><span class="metric-label">目标组</span></div>
+        <div class="metric"><strong>${draft.lowEnergy ? "开" : "关"}</strong><span class="metric-label">低疲劳</span></div>
+      </div>
+    </section>
+
+    <section class="panel compact">
+      <div class="pill-row">
+        <button class="pill-button ${draft.lowEnergy ? "active" : ""}" type="button" data-low-energy>今天累</button>
+        <button class="pill-button" type="button" data-fill-last>带入上次重量</button>
+        <button class="pill-button" type="button" data-clear-draft>清空今天</button>
+      </div>
+    </section>
+
+    <article class="deck-card ${meta.deferred ? "deferred" : ""}">
+      <div class="deck-media">
+        <img alt="${current.name}" src="${equipment.image}" />
+        <span class="target-badge">${doneForExercise}/${setTotal} 组</span>
+      </div>
+      <div class="deck-body">
+        <p class="eyebrow">${actualEquipmentId}${actualEquipmentId !== current.equipmentId ? ` · 原 ${planned.label || planned.name}` : ""}</p>
+        <h2>${current.name}</h2>
+        <p class="cue">${equipment.name}</p>
+        <p class="cue">${current.cue}</p>
+        <p class="progress-note">${note}</p>
+
+        <div class="deck-set-row" data-exercise="${current.id}" data-set="${setIndex}">
+          <span class="set-number">${setIndex + 1}</span>
+          <label><span>重量</span><input inputmode="decimal" name="weight" placeholder="${state.settings.units}" value="${entry.weight ?? ""}" /></label>
+          <label><span>次数</span><input inputmode="numeric" name="reps" placeholder="${current.repMax}" value="${entry.reps ?? ""}" /></label>
+          <label><span>RIR</span><input inputmode="numeric" name="rir" placeholder="2" value="${entry.rir ?? ""}" /></label>
+        </div>
+
+        <div class="deck-actions">
+          <button class="primary-button" type="button" data-complete-current>完成这一组</button>
+          <button class="secondary-button" type="button" data-next-current>先去下个</button>
+          <button class="secondary-button" type="button" data-replace-current>换机器</button>
+          <button class="secondary-button" type="button" data-issue-current>有问题</button>
+        </div>
+
+        ${meta.showIssue ? renderIssuePanel(current) : ""}
+        ${meta.choosingReplacement ? renderReplacementPanel(current, actualEquipmentId, options) : ""}
+      </div>
+    </article>
+
+    <section class="panel compact">
+      <div class="queue-list">
+        ${visibleExercises.map((item) => renderQueueItem(item, draft)).join("")}
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>备注</h2>
+      <textarea class="note-box" id="sessionNotes" placeholder="状态、疼痛、器械排队、饮食都可以记">${escapeHtml(draft.notes || "")}</textarea>
+      <div class="action-row">
+        <button class="primary-button" type="button" data-finish-workout>完成训练</button>
+      </div>
+    </section>
+  `;
+
+  bindDeckStrength(workout, draftKey, current, setIndex);
+}
+
+function renderIssuePanel(item) {
+  return `
+    <div class="issue-panel">
+      <button type="button" data-issue-action="${item.id}:busy">机器被占</button>
+      <button type="button" data-issue-action="${item.id}:broken">机器坏了</button>
+      <button type="button" data-issue-action="${item.id}:pain">不舒服</button>
+      <button type="button" data-issue-action="${item.id}:tired">今天太累</button>
+    </div>
+  `;
+}
+
+function renderQueueItem(item, draft) {
+  const setTotal = activeSetCount(item, draft.lowEnergy);
+  const done = completeSetsForExercise(item, draft);
+  const meta = exerciseMeta(draft, item.id);
+  const active = draft.activeExerciseId === item.id || (!draft.activeExerciseId && done < setTotal);
+  return `
+    <button class="queue-item ${active ? "active" : ""} ${done >= setTotal ? "done" : ""}" type="button" data-focus-exercise="${item.id}">
+      <span>${item.name}</span>
+      <strong>${done}/${setTotal}</strong>
+      ${meta.deferred ? "<small>稍后</small>" : ""}
+    </button>
+  `;
+}
+
+function bindDeckStrength(workout, draftKey, current, setIndex) {
+  const draft = state.draft[draftKey];
+  const entry = ensureSetEntry(draft, current.id, setIndex);
+
+  app.querySelector("[data-low-energy]").addEventListener("click", () => {
+    draft.lowEnergy = !draft.lowEnergy;
+    draft.activeExerciseId = "";
+    persistDraft();
+    render();
+  });
+
+  app.querySelector("[data-clear-draft]").addEventListener("click", () => {
+    state.draft[draftKey] = createDraft(workout);
+    persistDraft();
+    render();
+  });
+
+  app.querySelector("[data-fill-last]").addEventListener("click", () => {
+    fillLastWeights(workout, draft);
+    persistDraft();
+    render();
+    toast("已带入上次重量");
+  });
+
+  app.querySelectorAll(".deck-set-row input").forEach((input) => {
+    input.addEventListener("input", () => {
+      entry[input.name] = input.value.trim();
+      persistDraft();
+    });
+  });
+
+  app.querySelector("[data-complete-current]").addEventListener("click", () => {
+    app.querySelectorAll(".deck-set-row input").forEach((input) => {
+      entry[input.name] = input.value.trim();
+    });
+    entry.done = true;
+    if (completeSetsForExercise(current, draft) >= activeSetCount(current, draft.lowEnergy)) {
+      focusNextExercise(workout, draft, current);
+    } else {
+      draft.activeExerciseId = current.id;
+    }
+    persistDraft();
+    render();
+  });
+
+  app.querySelector("[data-next-current]").addEventListener("click", () => {
+    const meta = exerciseMeta(draft, current.id);
+    meta.deferred = true;
+    meta.showIssue = false;
+    meta.choosingReplacement = false;
+    focusNextExercise(workout, draft, current);
+    persistDraft();
+    render();
+  });
+
+  app.querySelector("[data-replace-current]").addEventListener("click", () => {
+    const meta = exerciseMeta(draft, current.id);
+    meta.choosingReplacement = !meta.choosingReplacement;
+    meta.showIssue = false;
+    persistDraft();
+    render();
+  });
+
+  app.querySelector("[data-issue-current]").addEventListener("click", () => {
+    const meta = exerciseMeta(draft, current.id);
+    meta.showIssue = !meta.showIssue;
+    meta.choosingReplacement = false;
+    persistDraft();
+    render();
+  });
+
+  app.querySelectorAll("[data-issue-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const [exerciseId, action] = button.dataset.issueAction.split(":");
+      handleIssueAction(workout, draft, exerciseId, action);
+      persistDraft();
+      render();
+    });
+  });
+
+  app.querySelectorAll("[data-replacement]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const [exerciseId, equipmentId] = button.dataset.replacement.split(":");
+      const meta = exerciseMeta(draft, exerciseId);
+      meta.equipmentId = equipmentId;
+      meta.deferred = false;
+      meta.choosingReplacement = false;
+      meta.showIssue = false;
+      draft.activeExerciseId = exerciseId;
+      persistDraft();
+      render();
+      toast(`已换到 ${equipmentFor(equipmentId).label || equipmentId}`);
+    });
+  });
+
+  app.querySelectorAll("[data-focus-exercise]").forEach((button) => {
+    button.addEventListener("click", () => {
+      draft.activeExerciseId = button.dataset.focusExercise;
+      exerciseMeta(draft, draft.activeExerciseId).deferred = false;
+      persistDraft();
+      render();
+    });
+  });
+
+  app.querySelector("#sessionNotes").addEventListener("input", (event) => {
+    draft.notes = event.target.value;
+    persistDraft();
+  });
+
+  app.querySelector("[data-finish-workout]").addEventListener("click", () => finishWorkout(workout, draftKey));
 }
 
 function renderExercise(item, draft, workoutId) {
@@ -692,7 +965,7 @@ function renderSettings() {
   `;
 
   app.querySelector("[data-login]").addEventListener("click", () => {
-    window.location.href = `${authBaseUrl()}/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(window.location.href)}`;
+    window.location.href = loginUrl();
   });
 
   app.querySelector("[data-logout]").addEventListener("click", () => {
@@ -843,6 +1116,7 @@ function createDraft(workout) {
 function ensureDraftShape(draft) {
   draft.exercises ||= {};
   draft.exerciseMeta ||= {};
+  draft.activeExerciseId ||= "";
   return draft;
 }
 
@@ -862,6 +1136,80 @@ function orderedExercises(exercises, draft) {
     const bDeferred = exerciseMeta(draft, b.id).deferred ? 1 : 0;
     return aDeferred - bDeferred;
   });
+}
+
+function activeDeckExercise(visibleExercises, draft) {
+  const active = visibleExercises.find((item) => item.id === draft.activeExerciseId);
+  if (active) return active;
+
+  const next = visibleExercises.find((item) => !exerciseMeta(draft, item.id).deferred && completeSetsForExercise(item, draft) < activeSetCount(item, draft.lowEnergy));
+  const fallback = next || visibleExercises.find((item) => completeSetsForExercise(item, draft) < activeSetCount(item, draft.lowEnergy)) || visibleExercises[0];
+  draft.activeExerciseId = fallback?.id || "";
+  return fallback;
+}
+
+function currentSetIndex(item, draft) {
+  const setTotal = activeSetCount(item, draft.lowEnergy);
+  const sets = draft.exercises[item.id] || [];
+  const index = sets.slice(0, setTotal).findIndex((set) => !set?.done);
+  return index === -1 ? Math.max(0, setTotal - 1) : index;
+}
+
+function completeSetsForExercise(item, draft) {
+  return (draft.exercises[item.id] || [])
+    .slice(0, activeSetCount(item, draft.lowEnergy))
+    .filter((set) => set?.done)
+    .length;
+}
+
+function countVisibleCompleteSets(visibleExercises, draft) {
+  return visibleExercises.reduce((sum, item) => sum + completeSetsForExercise(item, draft), 0);
+}
+
+function focusNextExercise(workout, draft, current) {
+  const visibleExercises = orderedExercises(workout.exercises, draft).filter((item) => activeSetCount(item, draft.lowEnergy) > 0);
+  const currentIndex = visibleExercises.findIndex((item) => item.id === current.id);
+  const after = visibleExercises.slice(currentIndex + 1).find((item) => !exerciseMeta(draft, item.id).deferred && completeSetsForExercise(item, draft) < activeSetCount(item, draft.lowEnergy));
+  const before = visibleExercises.slice(0, currentIndex + 1).find((item) => !exerciseMeta(draft, item.id).deferred && completeSetsForExercise(item, draft) < activeSetCount(item, draft.lowEnergy));
+  const fallback = visibleExercises.find((item) => completeSetsForExercise(item, draft) < activeSetCount(item, draft.lowEnergy));
+  draft.activeExerciseId = (after || before || fallback || current)?.id || "";
+}
+
+function handleIssueAction(workout, draft, exerciseId, action) {
+  const meta = exerciseMeta(draft, exerciseId);
+  const item = workout.exercises.find((exercise) => exercise.id === exerciseId);
+  if (!item) return;
+
+  meta.showIssue = false;
+  if (action === "busy") {
+    meta.issue = "机器被占";
+    meta.deferred = true;
+    appendDraftNote(draft, `${item.name}: 机器被占，先跳过`);
+    focusNextExercise(workout, draft, item);
+    return;
+  }
+  if (action === "broken") {
+    meta.issue = "机器坏了";
+    meta.choosingReplacement = true;
+    appendDraftNote(draft, `${item.name}: 机器坏了，尝试替代`);
+    return;
+  }
+  if (action === "pain") {
+    meta.issue = "不舒服";
+    meta.deferred = true;
+    appendDraftNote(draft, `${item.name}: 不舒服，今天先不硬做`);
+    focusNextExercise(workout, draft, item);
+    return;
+  }
+  if (action === "tired") {
+    draft.lowEnergy = true;
+    appendDraftNote(draft, "今天状态偏累，已切低疲劳模式");
+  }
+}
+
+function appendDraftNote(draft, text) {
+  const existing = (draft.notes || "").trim();
+  draft.notes = existing ? `${existing}\n${text}` : text;
 }
 
 function ensureSetEntry(draft, exerciseId, index) {
@@ -1001,6 +1349,14 @@ function apiUrl(path) {
 
 function authBaseUrl() {
   return (state.config.apiBaseUrl || "").replace(/\/$/, "");
+}
+
+function loginRequired() {
+  return Boolean(state.config.requireAuth || state.user?.authRequired);
+}
+
+function loginUrl() {
+  return `${authBaseUrl()}/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(window.location.href)}`;
 }
 
 function currentWorkout() {

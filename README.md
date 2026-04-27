@@ -22,6 +22,7 @@ zyGym/data/gym-checkin.local.json
 ## 当前功能
 
 - 今日训练自动显示：推 / 腿 / 拉 / Zone 2 / 普拉提 / 休息
+- 今日训练翻卡流：当前动作、当前组、完成一组、先去下个、有问题
 - 训练动作 guide：器械名、照片编号、组数次数、动作重点
 - 设备库：每台机器的状态、个人设置、备注、1-2 个替代机器
 - 今日训练临时调整：先去下个项目、换到预设替代机器
@@ -31,7 +32,7 @@ zyGym/data/gym-checkin.local.json
 - 历史记录
 - JSON / CSV 导出
 - PWA 离线缓存
-- Microsoft 登录入口：Azure App Service Auth 已配置为允许匿名 + 可登录；登录后 API 会按 Microsoft principal 分区
+- Microsoft 登录：生产环境要求登录后进入；API 会按 Microsoft principal 分区
 
 ## Azure 架构
 
@@ -75,7 +76,8 @@ RG:       zyGym
 ```json
 {
   "apiBaseUrl": "https://func-zygym-zy8095.azurewebsites.net",
-  "useCredentials": true
+  "useCredentials": true,
+  "requireAuth": true
 }
 ```
 
@@ -109,7 +111,7 @@ https://stzygymzy8095.z5.web.core.windows.net
 http://127.0.0.1:5174
 ```
 
-并且生产环境为了 Microsoft 登录 cookie 需要启用 CORS credentials。
+并且生产环境为了 Microsoft 登录 cookie 需要启用 CORS credentials。Function App 生产环境设置 `AUTH_REQUIRED=true`，未登录时数据 API 会返回 401。
 
 Azure 资源脚本在 [infra/azure-create.sh](/Users/zy8095/Documents/Codex/2026-04-23/chat/zyGym/infra/azure-create.sh:1)，它会创建 Storage Static Website、Function App、Cosmos DB serverless，并用 Function App 的 managed identity 授权 Cosmos。
 

@@ -82,11 +82,12 @@ The checked-in Worker also has an `/api/*` and `/.auth/*` proxy path for a futur
 ```json
 {
   "apiBaseUrl": "https://func-zygym-zy8095.azurewebsites.net",
-  "useCredentials": true
+  "useCredentials": true,
+  "requireAuth": true
 }
 ```
 
-Function App authentication is configured in allow-anonymous mode with Microsoft/AAD login enabled. CORS credentials are enabled so that a signed-in browser can send App Service auth cookies from `gym.zy8095.io` to the Function App.
+Function App authentication is configured in allow-anonymous mode with Microsoft/AAD login enabled, while the app itself uses `AUTH_REQUIRED=true` to reject anonymous data API calls. CORS credentials are enabled so that a signed-in browser can send App Service auth cookies from `gym.zy8095.io` to the Function App.
 
 ## Runtime Note
 

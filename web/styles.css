@@ -383,6 +383,135 @@ h3 {
   font-weight: 750;
 }
 
+.deck-card {
+  margin-bottom: 14px;
+  overflow: clip;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.deck-card.deferred {
+  border-style: dashed;
+}
+
+.deck-media {
+  position: relative;
+  min-height: 220px;
+  background: #ebe5da;
+}
+
+.deck-media img {
+  display: block;
+  width: 100%;
+  height: 260px;
+  object-fit: cover;
+}
+
+.deck-media .target-badge {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  background: rgba(255, 253, 248, 0.94);
+}
+
+.deck-body {
+  padding: 16px;
+}
+
+.deck-set-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) minmax(0, 1fr) 60px;
+  gap: 8px;
+  align-items: end;
+  margin-top: 14px;
+}
+
+.deck-set-row label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.deck-set-row label span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.deck-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.deck-actions .primary-button {
+  grid-column: 1 / -1;
+}
+
+.issue-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px;
+  background: #fff8ec;
+  border: 1px solid #ecd5ac;
+  border-radius: 8px;
+}
+
+.issue-panel button {
+  min-height: 38px;
+  color: #6c4a10;
+  background: #fffdf9;
+  border: 1px solid #ecd5ac;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.queue-list {
+  display: grid;
+  gap: 7px;
+}
+
+.queue-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 42px;
+  padding: 8px 10px;
+  text-align: left;
+  background: #fffdf9;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.queue-item.active {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(25, 68, 60, 0.12);
+}
+
+.queue-item.done {
+  background: var(--green-soft);
+}
+
+.queue-item span,
+.queue-item strong,
+.queue-item small {
+  overflow-wrap: anywhere;
+}
+
+.queue-item strong,
+.queue-item small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
 .set-list {
   display: grid;
   gap: 8px;
@@ -421,6 +550,7 @@ h3 {
 }
 
 .set-row input,
+.deck-set-row input,
 .equipment-form input,
 .equipment-form select,
 .settings-grid input,
@@ -437,6 +567,7 @@ textarea {
 }
 
 .set-row input:focus,
+.deck-set-row input:focus,
 .equipment-form input:focus,
 .equipment-form select:focus,
 .settings-grid input:focus,
@@ -692,6 +823,16 @@ textarea:focus {
   .set-row input {
     padding-right: 7px;
     padding-left: 7px;
+  }
+
+  .deck-set-row {
+    grid-template-columns: 34px minmax(0, 1fr) minmax(0, 1fr) 48px;
+    gap: 6px;
+  }
+
+  .deck-actions,
+  .issue-panel {
+    grid-template-columns: 1fr;
   }
 
   .exercise-head {
