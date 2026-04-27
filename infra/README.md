@@ -9,7 +9,7 @@ The app uses:
 - Azure Cosmos DB for NoSQL, serverless capacity.
 - Cloudflare DNS + Worker route for `https://gym.zy8095.io`.
 - One Cosmos container named `items` with partition key `/userId`.
-- Document `type` values: `session`, `plan`, `settings`.
+- Document `type` values: `session`, `plan`, `settings`, `equipment`.
 - Function App system-assigned managed identity with Cosmos DB data-plane RBAC.
 
 Why not Static Web Apps managed functions: managed functions do not support managed identity. This app keeps the frontend as static files and calls an independent Function App that can use MI.
@@ -76,6 +76,17 @@ Worker: infra/cloudflare-worker.js
 ```
 
 The Worker rewrites the upstream host to `stzygymzy8095.z5.web.core.windows.net`. This is needed because Azure Storage static website returns 400 when it receives the custom hostname directly.
+
+The checked-in Worker also has an `/api/*` and `/.auth/*` proxy path for a future same-origin API setup. As of 2026-04-27 the deployed production config still calls the Function App origin directly:
+
+```json
+{
+  "apiBaseUrl": "https://func-zygym-zy8095.azurewebsites.net",
+  "useCredentials": true
+}
+```
+
+Function App authentication is configured in allow-anonymous mode with Microsoft/AAD login enabled. CORS credentials are enabled so that a signed-in browser can send App Service auth cookies from `gym.zy8095.io` to the Function App.
 
 ## Runtime Note
 

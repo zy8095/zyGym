@@ -1,17 +1,55 @@
-function getUserId(req) {
+function getUser(req) {
   const headers = normalizeHeaders(req.headers || {});
   const encodedPrincipal = headers["x-ms-client-principal"];
   if (encodedPrincipal) {
     try {
       const json = Buffer.from(encodedPrincipal, "base64").toString("utf8");
       const principal = JSON.parse(json);
-      return principal.userId || principal.userDetails || "azure-user";
+      return {
+        id: principal.userId || principal.userDetails || "azure-user",
+        name: principal.userDetails || headers["x-ms-client-principal-name"] || "Microsoft user",
+        provider: principal.identityProvider || "aad",
+        authenticated: true,
+        roles: Array.isArray(principal.userRoles) ? principal.userRoles : []
+      };
     } catch {
-      return "azure-user";
+      return {
+        id: "azure-user",
+        name: headers["x-ms-client-principal-name"] || "Microsoft user",
+        provider: "aad",
+        authenticated: true,
+        roles: []
+      };
     }
   }
 
-  return headers["x-user-id"] || "local-user";
+  if (headers["x-user-id"]) {
+    return {
+      id: headers["x-user-id"],
+      name: headers["x-user-name"] || headers["x-user-id"],
+      provider: "dev-header",
+      authenticated: false,
+      roles: []
+    };
+  }
+
+  return null;
+}
+
+function getUserId(req) {
+  const user = getUser(req);
+  if (user?.id) return user.id;
+  return "local-user";
+}
+
+function getDisplayUser(req) {
+  return getUser(req) || {
+    id: "local-user",
+    name: "Local User",
+    provider: "local",
+    authenticated: false,
+    roles: []
+  };
 }
 
 function normalizeHeaders(headers) {
@@ -21,4 +59,4 @@ function normalizeHeaders(headers) {
   }, {});
 }
 
-module.exports = { getUserId };
+module.exports = { getUser, getUserId, getDisplayUser };

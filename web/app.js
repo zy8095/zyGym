@@ -2,7 +2,8 @@ const STORAGE_KEYS = {
   draft: "gym-checkin:draft",
   sessions: "gym-checkin:sessions",
   settings: "gym-checkin:settings",
-  plan: "gym-checkin:plan"
+  plan: "gym-checkin:plan",
+  equipment: "gym-checkin:equipment"
 };
 
 const app = document.querySelector("#app");
@@ -18,8 +19,11 @@ const state = {
   settings: loadSettings(),
   draft: loadDraft(),
   equipment: {},
+  equipmentProfile: { items: [] },
+  editingEquipmentId: "",
   plan: null,
-  config: { apiBaseUrl: "" },
+  user: null,
+  config: { apiBaseUrl: "", useCredentials: false },
   apiOnline: false
 };
 
@@ -29,7 +33,7 @@ async function init() {
   bindShell();
   renderLoading();
   await loadConfig();
-  await Promise.all([loadEquipment(), loadPlan(), loadRemoteSessions()]);
+  await Promise.all([loadUser(), loadEquipment(), loadPlan(), loadRemoteSessions()]);
   state.selectedPlan = todayWorkoutId();
   render();
   if ("serviceWorker" in navigator) {
@@ -53,8 +57,35 @@ function bindShell() {
 }
 
 async function loadEquipment() {
-  const data = await fetchJson("/data/equipment.json");
-  state.equipment = Object.fromEntries((data.items || []).map((item) => [item.id, item]));
+  try {
+    const data = await fetchJson(apiUrl("/equipment"));
+    applyEquipmentProfile(data.equipment);
+    localStorage.setItem(STORAGE_KEYS.equipment, JSON.stringify(state.equipmentProfile));
+    state.apiOnline = true;
+  } catch {
+    const cached = readJson(STORAGE_KEYS.equipment, null);
+    if (cached?.items?.length) {
+      applyEquipmentProfile(cached);
+      return;
+    }
+    const data = await fetchJson("/data/equipment.json");
+    applyEquipmentProfile(data);
+  }
+}
+
+async function loadUser() {
+  try {
+    const data = await fetchJson(apiUrl("/me"));
+    state.user = data.user;
+  } catch {
+    state.user = { id: "local-user", name: "Local User", provider: "local", authenticated: false };
+  }
+}
+
+function applyEquipmentProfile(profile) {
+  const items = Array.isArray(profile?.items) ? profile.items : [];
+  state.equipmentProfile = { ...profile, items };
+  state.equipment = Object.fromEntries(items.map((item) => [item.id, item]));
 }
 
 async function loadConfig() {
@@ -92,7 +123,12 @@ async function loadRemoteSessions(showErrors = false) {
 }
 
 async function fetchJson(url, options) {
-  const res = await fetch(url, options);
+  const target = new URL(url, window.location.href);
+  const fetchOptions = { ...(options || {}) };
+  if (target.origin === window.location.origin || state.config.useCredentials) {
+    fetchOptions.credentials = "include";
+  }
+  const res = await fetch(url, fetchOptions);
   if (!res.ok) throw new Error(`${url} ${res.status}`);
   return res.json();
 }
@@ -106,6 +142,7 @@ function render() {
   tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.route === state.route));
 
   if (state.route === "today") renderToday();
+  if (state.route === "equipment") renderEquipment();
   if (state.route === "plan") renderPlan();
   if (state.route === "history") renderHistory();
   if (state.route === "settings") renderSettings();
@@ -152,10 +189,11 @@ function renderStrength(workout, isToday = false) {
   const dateKey = todayKey();
   const draftKey = `${dateKey}:${state.plan.id}:${workout.id}`;
   const draft = state.draft[draftKey] || createDraft(workout);
+  ensureDraftShape(draft);
   state.draft[draftKey] = draft;
   persistDraft();
 
-  const visibleExercises = workout.exercises.filter((item) => activeSetCount(item, draft.lowEnergy) > 0);
+  const visibleExercises = orderedExercises(workout.exercises, draft).filter((item) => activeSetCount(item, draft.lowEnergy) > 0);
   const setCount = visibleExercises.reduce((sum, item) => sum + activeSetCount(item, draft.lowEnergy), 0);
   const completeCount = countCompleteSets(draft);
   const lastSame = state.sessions.find((session) => session.workoutId === workout.id);
@@ -201,28 +239,62 @@ function renderStrength(workout, isToday = false) {
 function renderExercise(item, draft, workoutId) {
   const setTotal = activeSetCount(item, draft.lowEnergy);
   const rows = Array.from({ length: setTotal }, (_, index) => renderSetRow(item, draft, index)).join("");
-  const note = progressionNote(item, workoutId);
-  const equipment = equipmentFor(item.equipmentId);
-  const alt = item.alternateEquipmentIds?.length ? ` / 替代：${item.alternateEquipmentIds.join(", ")}` : "";
+  const meta = exerciseMeta(draft, item.id);
+  const actualEquipmentId = currentEquipmentId(item, draft);
+  const note = progressionNote(item, workoutId, actualEquipmentId);
+  const equipment = equipmentFor(actualEquipmentId);
+  const planned = equipmentFor(item.equipmentId);
+  const options = replacementOptions(item, actualEquipmentId);
+  const replacementText = actualEquipmentId !== item.equipmentId ? `原计划：${planned.label || planned.name}` : statusText(equipment.status);
+  const stateClass = meta.deferred ? " deferred" : "";
 
   return `
-    <article class="exercise-card" data-exercise="${item.id}" data-equipment="${item.equipmentId}">
+    <article class="exercise-card${stateClass}" data-exercise="${item.id}" data-equipment="${actualEquipmentId}">
       <div class="exercise-head">
         <img class="equipment-img" alt="${item.name}" src="${equipment.image}" loading="lazy" />
         <div>
           <div class="exercise-title-row">
             <div>
               <h3>${item.name}</h3>
-              <p class="cue">${item.equipmentId} · ${equipment.name}${alt}</p>
+              <p class="cue">${actualEquipmentId} · ${equipment.name}</p>
             </div>
             <span class="target-badge">${setTotal} x ${item.repMin}-${item.repMax}</span>
           </div>
           <p class="cue">${item.cue}</p>
+          <p class="cue">${replacementText}</p>
           <p class="progress-note">${note}</p>
+          <div class="exercise-actions">
+            <button class="mini-button ${meta.deferred ? "active" : ""}" type="button" data-defer-exercise="${item.id}">
+              ${meta.deferred ? "回到当前" : "先去下个"}
+            </button>
+            <button class="mini-button" type="button" data-replace-exercise="${item.id}">换机器</button>
+            ${actualEquipmentId !== item.equipmentId ? `<button class="mini-button" type="button" data-reset-equipment="${item.id}">用原机器</button>` : ""}
+          </div>
+          ${meta.choosingReplacement ? renderReplacementPanel(item, actualEquipmentId, options) : ""}
         </div>
       </div>
       <div class="set-list">${rows}</div>
     </article>
+  `;
+}
+
+function renderReplacementPanel(item, actualEquipmentId, options) {
+  if (!options.length) {
+    return `<div class="replacement-panel"><p class="cue">这台暂时没有预设替代，先去下个项目比较稳。</p></div>`;
+  }
+
+  return `
+    <div class="replacement-panel">
+      ${options.map((option) => `
+        <button class="replacement-option ${option.id === actualEquipmentId ? "active" : ""}" type="button" data-replacement="${item.id}:${option.id}">
+          <img alt="${option.label || option.name}" src="${option.image}" loading="lazy" />
+          <span>
+            <strong>${option.label || option.name}</strong>
+            <small>${option.id} · ${statusText(option.status)}</small>
+          </span>
+        </button>
+      `).join("")}
+    </div>
   `;
 }
 
@@ -261,6 +333,49 @@ function bindStrength(workout, draftKey) {
     toast("已带入上次重量");
   });
 
+  app.querySelectorAll("[data-defer-exercise]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const meta = exerciseMeta(draft, button.dataset.deferExercise);
+      meta.deferred = !meta.deferred;
+      meta.choosingReplacement = false;
+      persistDraft();
+      render();
+    });
+  });
+
+  app.querySelectorAll("[data-replace-exercise]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const meta = exerciseMeta(draft, button.dataset.replaceExercise);
+      meta.choosingReplacement = !meta.choosingReplacement;
+      persistDraft();
+      render();
+    });
+  });
+
+  app.querySelectorAll("[data-reset-equipment]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const meta = exerciseMeta(draft, button.dataset.resetEquipment);
+      delete meta.equipmentId;
+      meta.choosingReplacement = false;
+      persistDraft();
+      render();
+      toast("已切回原机器");
+    });
+  });
+
+  app.querySelectorAll("[data-replacement]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const [exerciseId, equipmentId] = button.dataset.replacement.split(":");
+      const meta = exerciseMeta(draft, exerciseId);
+      meta.equipmentId = equipmentId;
+      meta.deferred = false;
+      meta.choosingReplacement = false;
+      persistDraft();
+      render();
+      toast(`已换到 ${equipmentFor(equipmentId).label || equipmentId}`);
+    });
+  });
+
   app.querySelectorAll(".set-row").forEach((row) => {
     const exerciseId = row.dataset.exercise;
     const setIndex = Number(row.dataset.set);
@@ -287,6 +402,130 @@ function bindStrength(workout, draftKey) {
   });
 
   app.querySelector("[data-finish-workout]").addEventListener("click", () => finishWorkout(workout, draftKey));
+}
+
+function renderEquipment() {
+  const items = equipmentItems();
+  const editing = state.editingEquipmentId;
+  const counts = statusCounts(items);
+
+  app.innerHTML = `
+    <section class="panel hero-card">
+      <div>
+        <p class="eyebrow">设备库</p>
+        <h2>${items.length} 台机器</h2>
+        <p class="muted">状态和替代关系会影响今日训练里的换机器候选。</p>
+      </div>
+      <div class="metric-grid">
+        <div class="metric"><strong>${counts.available}</strong><span class="metric-label">可用</span></div>
+        <div class="metric"><strong>${counts.busy}</strong><span class="metric-label">常被占</span></div>
+        <div class="metric"><strong>${counts.broken + counts.avoid}</strong><span class="metric-label">避开</span></div>
+      </div>
+    </section>
+    <section class="equipment-list">
+      ${items.map((item) => editing === item.id ? renderEquipmentEditor(item, items) : renderEquipmentCard(item)).join("")}
+    </section>
+  `;
+
+  app.querySelectorAll("[data-edit-equipment]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.editingEquipmentId = button.dataset.editEquipment;
+      renderEquipment();
+    });
+  });
+
+  app.querySelectorAll("[data-cancel-equipment]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.editingEquipmentId = "";
+      renderEquipment();
+    });
+  });
+
+  app.querySelectorAll("[data-save-equipment]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const card = button.closest("[data-equipment-editor]");
+      const id = card.dataset.equipmentEditor;
+      const item = state.equipment[id];
+      const altIds = [card.querySelector("[name=alt1]").value, card.querySelector("[name=alt2]").value].filter(Boolean);
+      updateEquipmentItem(id, {
+        ...item,
+        label: card.querySelector("[name=label]").value.trim() || item.label,
+        name: card.querySelector("[name=name]").value.trim() || item.name,
+        category: card.querySelector("[name=category]").value.trim(),
+        status: card.querySelector("[name=status]").value,
+        setup: card.querySelector("[name=setup]").value.trim(),
+        notes: card.querySelector("[name=notes]").value.trim(),
+        alternateEquipmentIds: [...new Set(altIds)]
+      });
+      await saveEquipmentProfile();
+      state.editingEquipmentId = "";
+      toast("设备已保存");
+      renderEquipment();
+    });
+  });
+}
+
+function renderEquipmentCard(item) {
+  return `
+    <article class="equipment-card">
+      <img class="equipment-card-img" alt="${item.label || item.name}" src="${item.image}" loading="lazy" />
+      <div>
+        <div class="equipment-card-head">
+          <h3>${item.label || item.name}</h3>
+          <span class="status-badge ${item.status || "available"}">${statusText(item.status)}</span>
+        </div>
+        <p class="cue">${item.id} · ${item.name}</p>
+        <p class="cue">${item.category || "未分类"}</p>
+        ${item.setup ? `<p class="progress-note">设置：${escapeHtml(item.setup)}</p>` : ""}
+        ${item.notes ? `<p class="cue">${escapeHtml(item.notes)}</p>` : ""}
+        <div class="mini-alt-row">
+          ${(item.alternateEquipmentIds || []).slice(0, 3).map((id) => `<span>${equipmentFor(id).label || id}</span>`).join("")}
+        </div>
+      </div>
+      <button class="mini-button" type="button" data-edit-equipment="${item.id}">编辑</button>
+    </article>
+  `;
+}
+
+function renderEquipmentEditor(item, items) {
+  return `
+    <article class="equipment-card editing" data-equipment-editor="${item.id}">
+      <img class="equipment-card-img" alt="${item.label || item.name}" src="${item.image}" loading="lazy" />
+      <div class="equipment-form">
+        <label>显示名<input name="label" value="${escapeHtml(item.label || "")}" /></label>
+        <label>英文名<input name="name" value="${escapeHtml(item.name || "")}" /></label>
+        <label>分类<input name="category" value="${escapeHtml(item.category || "")}" /></label>
+        <label>状态
+          <select name="status">
+            ${["available", "busy", "broken", "avoid"].map((status) => `<option value="${status}" ${item.status === status ? "selected" : ""}>${statusText(status)}</option>`).join("")}
+          </select>
+        </label>
+        <label>个人设置<input name="setup" placeholder="座椅、插销、握把" value="${escapeHtml(item.setup || "")}" /></label>
+        <label>备注<textarea name="notes" placeholder="不喜欢、容易排队、动作感觉">${escapeHtml(item.notes || "")}</textarea></label>
+        <div class="settings-grid two">
+          ${renderAlternativeSelect("alt1", item.alternateEquipmentIds?.[0], items, item.id)}
+          ${renderAlternativeSelect("alt2", item.alternateEquipmentIds?.[1], items, item.id)}
+        </div>
+        <div class="action-row">
+          <button class="secondary-button" type="button" data-save-equipment="${item.id}">保存</button>
+          <button class="secondary-button" type="button" data-cancel-equipment="${item.id}">取消</button>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+function renderAlternativeSelect(name, selected, items, ownId) {
+  return `
+    <label>替代 ${name === "alt1" ? "1" : "2"}
+      <select name="${name}">
+        <option value="">不设置</option>
+        ${items.filter((item) => item.id !== ownId).map((item) => `
+          <option value="${item.id}" ${selected === item.id ? "selected" : ""}>${item.label || item.name}</option>
+        `).join("")}
+      </select>
+    </label>
+  `;
 }
 
 function renderPlan() {
@@ -391,7 +630,8 @@ function renderHistoryCard(session) {
     const done = (item.sets || []).filter((set) => set.done).length;
     const topSet = topSetFor(item.sets || []);
     const topText = topSet ? ` · top ${topSet.weight} x ${topSet.reps}` : "";
-    return `<li>${item.name} (${item.equipmentId || ""}): ${done} 组${topText}</li>`;
+    const replaced = item.replaced ? " · 替换" : "";
+    return `<li>${item.name} (${item.equipmentId || ""}): ${done} 组${topText}${replaced}</li>`;
   }).join("");
 
   return `
@@ -407,7 +647,22 @@ function renderHistoryCard(session) {
 }
 
 function renderSettings() {
+  const user = state.user || { id: "local-user", name: "Local User", provider: "local", authenticated: false };
   app.innerHTML = `
+    <section class="panel">
+      <h2>账号</h2>
+      <div class="account-row">
+        <div>
+          <strong>${escapeHtml(user.name || user.id)}</strong>
+          <p class="cue">${user.authenticated ? `Microsoft 登录 · ${user.provider}` : "本地开发/未登录模式"}</p>
+        </div>
+        <span class="status-badge ${user.authenticated ? "available" : "busy"}">${user.authenticated ? "已登录" : "未登录"}</span>
+      </div>
+      <div class="action-row">
+        <button class="secondary-button" type="button" data-login>Microsoft 登录</button>
+        <button class="secondary-button" type="button" data-logout>退出登录</button>
+      </div>
+    </section>
     <section class="panel">
       <h2>设置</h2>
       <div class="settings-grid two">
@@ -435,6 +690,14 @@ function renderSettings() {
       <p class="cue">当前计划：${state.plan.id} · ${state.plan.version}</p>
     </section>
   `;
+
+  app.querySelector("[data-login]").addEventListener("click", () => {
+    window.location.href = `${authBaseUrl()}/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(window.location.href)}`;
+  });
+
+  app.querySelector("[data-logout]").addEventListener("click", () => {
+    window.location.href = `${authBaseUrl()}/.auth/logout?post_logout_redirect_uri=${encodeURIComponent(window.location.href)}`;
+  });
 
   app.querySelector("[data-save-settings]").addEventListener("click", async () => {
     state.settings.units = app.querySelector("#unitSelect").value;
@@ -473,12 +736,19 @@ async function finishWorkout(workout, draftKey) {
     exercises: workout.exercises
       .filter((item) => activeSetCount(item, draft.lowEnergy) > 0)
       .map((item) => {
-        const equipment = equipmentFor(item.equipmentId);
+        const meta = exerciseMeta(draft, item.id);
+        const actualEquipmentId = currentEquipmentId(item, draft);
+        const equipment = equipmentFor(actualEquipmentId);
+        const plannedEquipment = equipmentFor(item.equipmentId);
         return {
           id: item.id,
           name: item.name,
-          equipmentId: item.equipmentId,
+          equipmentId: actualEquipmentId,
           equipmentName: equipment.name,
+          plannedEquipmentId: item.equipmentId,
+          plannedEquipmentName: plannedEquipment.name,
+          replaced: actualEquipmentId !== item.equipmentId,
+          deferred: Boolean(meta.deferred),
           sets: (draft.exercises[item.id] || []).slice(0, activeSetCount(item, draft.lowEnergy)).map((set, index) => ({
             set: index + 1,
             weight: set.weight || "",
@@ -567,7 +837,31 @@ function createDraft(workout) {
   workout.exercises.forEach((item) => {
     exercises[item.id] = Array.from({ length: item.sets }, () => ({ weight: "", reps: "", rir: "", done: false }));
   });
-  return { workoutId: workout.id, lowEnergy: false, notes: "", exercises };
+  return { workoutId: workout.id, lowEnergy: false, notes: "", exercises, exerciseMeta: {} };
+}
+
+function ensureDraftShape(draft) {
+  draft.exercises ||= {};
+  draft.exerciseMeta ||= {};
+  return draft;
+}
+
+function exerciseMeta(draft, exerciseId) {
+  ensureDraftShape(draft);
+  draft.exerciseMeta[exerciseId] ||= {};
+  return draft.exerciseMeta[exerciseId];
+}
+
+function currentEquipmentId(item, draft) {
+  return exerciseMeta(draft, item.id).equipmentId || item.equipmentId;
+}
+
+function orderedExercises(exercises, draft) {
+  return [...exercises].sort((a, b) => {
+    const aDeferred = exerciseMeta(draft, a.id).deferred ? 1 : 0;
+    const bDeferred = exerciseMeta(draft, b.id).deferred ? 1 : 0;
+    return aDeferred - bDeferred;
+  });
 }
 
 function ensureSetEntry(draft, exerciseId, index) {
@@ -596,7 +890,7 @@ function refreshTodayMetrics(workout, draft) {
 
 function fillLastWeights(workout, draft) {
   workout.exercises.forEach((item) => {
-    const last = latestExercise(item.id, item.equipmentId, workout.id);
+    const last = latestExercise(item.id, currentEquipmentId(item, draft), workout.id);
     if (!last) return;
     (last.sets || []).forEach((set, index) => {
       const entry = ensureSetEntry(draft, item.id, index);
@@ -605,8 +899,8 @@ function fillLastWeights(workout, draft) {
   });
 }
 
-function progressionNote(item, workoutId) {
-  const last = latestExercise(item.id, item.equipmentId, workoutId);
+function progressionNote(item, workoutId, equipmentId = item.equipmentId) {
+  const last = latestExercise(item.id, equipmentId, workoutId);
   if (!last) return "首次记录：先找稳定重量";
 
   const topSet = topSetFor(last.sets || []);
@@ -641,9 +935,72 @@ function equipmentFor(id) {
   return state.equipment[id] || { id, name: id, label: id, image: "/assets/icon.svg" };
 }
 
+function equipmentItems() {
+  return state.equipmentProfile.items || Object.values(state.equipment);
+}
+
+function updateEquipmentItem(id, patch) {
+  const items = equipmentItems().map((item) => item.id === id ? { ...item, ...patch } : item);
+  applyEquipmentProfile({ ...state.equipmentProfile, items });
+}
+
+async function saveEquipmentProfile() {
+  localStorage.setItem(STORAGE_KEYS.equipment, JSON.stringify(state.equipmentProfile));
+  try {
+    const data = await fetchJson(apiUrl("/equipment"), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(state.equipmentProfile)
+    });
+    applyEquipmentProfile(data.equipment);
+    localStorage.setItem(STORAGE_KEYS.equipment, JSON.stringify(state.equipmentProfile));
+    state.apiOnline = true;
+  } catch {
+    state.apiOnline = false;
+  }
+}
+
+function replacementOptions(item, currentEquipmentId) {
+  const planned = equipmentFor(item.equipmentId);
+  const ids = [
+    ...(item.alternateEquipmentIds || []),
+    ...(planned.alternateEquipmentIds || [])
+  ].filter((id) => id && id !== currentEquipmentId);
+  return [...new Set(ids)]
+    .map(equipmentFor)
+    .filter((equipment) => equipment.id && equipment.id !== item.equipmentId)
+    .sort((a, b) => statusRank(a.status) - statusRank(b.status))
+    .slice(0, 4);
+}
+
+function statusCounts(items) {
+  return items.reduce((acc, item) => {
+    const status = item.status || "available";
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, { available: 0, busy: 0, broken: 0, avoid: 0 });
+}
+
+function statusText(status = "available") {
+  return {
+    available: "可用",
+    busy: "常被占",
+    broken: "维修",
+    avoid: "避开"
+  }[status] || "可用";
+}
+
+function statusRank(status = "available") {
+  return { available: 0, busy: 1, avoid: 2, broken: 3 }[status] ?? 0;
+}
+
 function apiUrl(path) {
   const base = (state.config.apiBaseUrl || "").replace(/\/$/, "");
   return `${base}/api${path}`;
+}
+
+function authBaseUrl() {
+  return (state.config.apiBaseUrl || "").replace(/\/$/, "");
 }
 
 function currentWorkout() {
@@ -681,7 +1038,7 @@ function startOfWeek(date) {
 }
 
 function routeTitle(route) {
-  return { today: "今日", plan: "训练计划", history: "历史记录", settings: "设置" }[route] || "Gym Check-in";
+  return { today: "今日", equipment: "设备库", plan: "训练计划", history: "历史记录", settings: "设置" }[route] || "Gym Check-in";
 }
 
 function loadDraft() {

@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { sessionsHandler, plansHandler, progressHandler, settingsHandler, healthHandler } = require("../api/shared/handlers");
+const { sessionsHandler, plansHandler, progressHandler, equipmentHandler, settingsHandler, meHandler, healthHandler } = require("../api/shared/handlers");
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -48,7 +48,9 @@ async function handleApi(req, res, url) {
   if (url.pathname === "/api/sessions") response = await sessionsHandler(fnReq);
   else if (url.pathname === "/api/plans") response = await plansHandler(fnReq);
   else if (url.pathname === "/api/progress") response = await progressHandler(fnReq);
+  else if (url.pathname === "/api/equipment") response = await equipmentHandler(fnReq);
   else if (url.pathname === "/api/settings") response = await settingsHandler(fnReq);
+  else if (url.pathname === "/api/me") response = await meHandler(fnReq);
   else if (url.pathname === "/api/health") response = await healthHandler(fnReq);
   else response = { status: 404, headers: { "content-type": "application/json" }, body: JSON.stringify({ error: "not found" }) };
 

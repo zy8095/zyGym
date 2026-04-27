@@ -3,6 +3,7 @@ const fs = require("fs/promises");
 const path = require("path");
 
 const defaultPlan = require("../seeds/current-plan.json");
+const defaultEquipment = require("../seeds/equipment.json");
 
 let cachedStore;
 
@@ -27,7 +28,7 @@ function createFileStore() {
       return normalizeDb(JSON.parse(raw));
     } catch (error) {
       if (error.code !== "ENOENT") throw error;
-      return { sessions: [], plans: [], settings: {} };
+      return { sessions: [], plans: [], settings: {}, equipment: {} };
     }
   }
 
@@ -93,6 +94,20 @@ function createFileStore() {
         .slice(0, limit);
     },
 
+    async getEquipment(userId) {
+      const db = await readDb();
+      return db.equipment?.[userId] || defaultEquipmentProfile(userId);
+    },
+
+    async saveEquipment(userId, equipment) {
+      const db = await readDb();
+      db.equipment ||= {};
+      const item = normalizeEquipment(userId, equipment);
+      db.equipment[userId] = item;
+      await writeDb(db);
+      return item;
+    },
+
     async getEquipmentProgress(userId, equipmentId, exerciseId, limit = 20) {
       const db = await readDb();
       return progressFromSessions(db.sessions.filter((item) => item.userId === userId), equipmentId, exerciseId, limit);
@@ -116,7 +131,8 @@ function normalizeDb(db) {
   return {
     sessions: Array.isArray(db.sessions) ? db.sessions : [],
     plans: Array.isArray(db.plans) ? db.plans : [],
-    settings: db.settings && typeof db.settings === "object" ? db.settings : {}
+    settings: db.settings && typeof db.settings === "object" ? db.settings : {},
+    equipment: db.equipment && typeof db.equipment === "object" ? db.equipment : {}
   };
 }
 
@@ -200,6 +216,24 @@ function createCosmosStore() {
       return resources;
     },
 
+    async getEquipment(userId) {
+      const c = container();
+      try {
+        const { resource } = await c.item(`equipment:${userId}`, userId).read();
+        return resource || defaultEquipmentProfile(userId);
+      } catch (error) {
+        if (error.code === 404) return defaultEquipmentProfile(userId);
+        throw error;
+      }
+    },
+
+    async saveEquipment(userId, equipment) {
+      const c = container();
+      const item = normalizeEquipment(userId, equipment);
+      await c.items.upsert(item);
+      return item;
+    },
+
     async getEquipmentProgress(userId, equipmentId, exerciseId, limit = 20) {
       const c = container();
       const query = {
@@ -260,6 +294,38 @@ function normalizePlan(userId, plan) {
     userId,
     createdAt: plan.createdAt || now,
     updatedAt: now
+  };
+}
+
+function defaultEquipmentProfile(userId) {
+  return normalizeEquipment(userId, defaultEquipment);
+}
+
+function normalizeEquipment(userId, equipment) {
+  const now = new Date().toISOString();
+  const sourceItems = Array.isArray(equipment?.items) ? equipment.items : [];
+  const items = sourceItems.length ? sourceItems : defaultEquipment.items;
+  return {
+    id: `equipment:${userId}`,
+    type: "equipment",
+    userId,
+    updatedAt: now,
+    items: items.map(normalizeEquipmentItem)
+  };
+}
+
+function normalizeEquipmentItem(item) {
+  const alternateEquipmentIds = item.alternateEquipmentIds || item.alternatives || [];
+  return {
+    id: String(item.id || ""),
+    name: String(item.name || item.id || ""),
+    label: String(item.label || item.name || item.id || ""),
+    category: String(item.category || ""),
+    image: String(item.image || "/assets/icon.svg"),
+    status: item.status || "available",
+    notes: String(item.notes || ""),
+    setup: String(item.setup || ""),
+    alternateEquipmentIds: Array.isArray(alternateEquipmentIds) ? alternateEquipmentIds.filter(Boolean) : []
   };
 }
 

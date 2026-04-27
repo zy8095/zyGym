@@ -1,6 +1,6 @@
 const { json, readBody, getQuery } = require("./http");
 const { getStore } = require("./store");
-const { getUserId } = require("./user");
+const { getDisplayUser, getUserId } = require("./user");
 
 async function sessionsHandler(req) {
   const userId = getUserId(req);
@@ -74,6 +74,27 @@ async function progressHandler(req) {
   return json(200, { progress });
 }
 
+async function equipmentHandler(req) {
+  const userId = getUserId(req);
+  const store = getStore();
+
+  if (req.method === "GET") {
+    const equipment = await store.getEquipment(userId);
+    return json(200, { equipment });
+  }
+
+  if (req.method === "PUT" || req.method === "POST") {
+    const body = readBody(req);
+    if (!Array.isArray(body?.items)) {
+      return json(400, { error: "equipment items are required" });
+    }
+    const equipment = await store.saveEquipment(userId, body);
+    return json(200, { equipment });
+  }
+
+  return json(405, { error: "method not allowed" });
+}
+
 async function settingsHandler(req) {
   const userId = getUserId(req);
   const store = getStore();
@@ -92,6 +113,10 @@ async function settingsHandler(req) {
   return json(405, { error: "method not allowed" });
 }
 
+async function meHandler(req) {
+  return json(200, { user: getDisplayUser(req) });
+}
+
 async function healthHandler() {
   const hasCosmos = Boolean(process.env.COSMOS_ENDPOINT);
   return json(200, {
@@ -105,4 +130,4 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-module.exports = { sessionsHandler, plansHandler, progressHandler, settingsHandler, healthHandler };
+module.exports = { sessionsHandler, plansHandler, progressHandler, equipmentHandler, settingsHandler, meHandler, healthHandler };

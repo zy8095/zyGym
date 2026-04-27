@@ -257,6 +257,11 @@ h3 {
   border-radius: 8px;
 }
 
+.exercise-card.deferred {
+  border-style: dashed;
+  opacity: 0.82;
+}
+
 .exercise-head {
   display: grid;
   grid-template-columns: 74px 1fr;
@@ -306,6 +311,78 @@ h3 {
   font-weight: 800;
 }
 
+.exercise-actions,
+.mini-alt-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.mini-button {
+  min-height: 32px;
+  padding: 0 10px;
+  color: var(--green);
+  background: var(--green-soft);
+  border: 1px solid rgba(25, 68, 60, 0.14);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.mini-button.active {
+  color: #fff;
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.replacement-panel {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px;
+  background: #f7f4ed;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.replacement-option {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 9px;
+  align-items: center;
+  min-height: 56px;
+  padding: 6px;
+  text-align: left;
+  background: #fffdf9;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.replacement-option.active {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(25, 68, 60, 0.12);
+}
+
+.replacement-option img {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 7px;
+}
+
+.replacement-option strong,
+.replacement-option small {
+  display: block;
+}
+
+.replacement-option small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
 .set-list {
   display: grid;
   gap: 8px;
@@ -344,6 +421,8 @@ h3 {
 }
 
 .set-row input,
+.equipment-form input,
+.equipment-form select,
 .settings-grid input,
 .settings-grid select,
 textarea {
@@ -358,6 +437,8 @@ textarea {
 }
 
 .set-row input:focus,
+.equipment-form input:focus,
+.equipment-form select:focus,
 .settings-grid input:focus,
 .settings-grid select:focus,
 textarea:focus {
@@ -404,6 +485,85 @@ textarea:focus {
 .history-list {
   display: grid;
   gap: 10px;
+}
+
+.equipment-list {
+  display: grid;
+  gap: 10px;
+}
+
+.equipment-card {
+  display: grid;
+  grid-template-columns: 74px 1fr auto;
+  gap: 12px;
+  align-items: start;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.equipment-card.editing {
+  grid-template-columns: 74px 1fr;
+}
+
+.equipment-card-img {
+  width: 74px;
+  height: 74px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #ebe5da;
+}
+
+.equipment-card-head,
+.account-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.status-badge {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: var(--green);
+  background: var(--green-soft);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.status-badge.busy {
+  color: #6c4a10;
+  background: #f2eadb;
+}
+
+.status-badge.broken,
+.status-badge.avoid {
+  color: #8a2d1e;
+  background: #fae3dd;
+}
+
+.mini-alt-row span {
+  padding: 4px 7px;
+  color: var(--muted);
+  background: #f1ede5;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.equipment-form {
+  display: grid;
+  gap: 10px;
+}
+
+.equipment-form label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 850;
 }
 
 .history-card {
@@ -477,7 +637,7 @@ textarea:focus {
   left: 0;
   z-index: 10;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 8px;
   width: min(100%, 820px);
   margin: 0 auto;
@@ -541,5 +701,14 @@ textarea:focus {
   .equipment-img {
     width: 62px;
     height: 62px;
+  }
+
+  .equipment-card {
+    grid-template-columns: 62px 1fr;
+  }
+
+  .equipment-card > .mini-button {
+    grid-column: 1 / -1;
+    width: 100%;
   }
 }
