@@ -1,3 +1,5 @@
 {
-  "apiBaseUrl": ""
+  "apiBaseUrl": "",
+  "useCredentials": true,
+  "requireAuth": true
 }
