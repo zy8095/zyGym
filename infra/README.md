@@ -75,13 +75,13 @@ Route:  gym.zy8095.io/* -> zygym-front-proxy
 Worker: infra/cloudflare-worker.js
 ```
 
-The Worker rewrites the upstream host to `stzygymzy8095.z5.web.core.windows.net`. This is needed because Azure Storage static website returns 400 when it receives the custom hostname directly.
+The Worker rewrites static requests to `stzygymzy8095.z5.web.core.windows.net`, and rewrites `/api/*` plus `/.auth/*` requests to `func-zygym-zy8095.azurewebsites.net`. Static host rewriting is needed because Azure Storage static website returns 400 when it receives the custom hostname directly. API/auth proxying keeps the Microsoft login cookie same-origin on `gym.zy8095.io`, which is important on mobile browsers.
 
-The checked-in Worker also has an `/api/*` and `/.auth/*` proxy path for a future same-origin API setup. As of 2026-04-27 the deployed production config still calls the Function App origin directly:
+Use same-origin API config in production:
 
 ```json
 {
-  "apiBaseUrl": "https://func-zygym-zy8095.azurewebsites.net",
+  "apiBaseUrl": "",
   "useCredentials": true,
   "requireAuth": true
 }

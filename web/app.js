@@ -177,7 +177,7 @@ function renderLoginGate() {
   app.innerHTML = `
     <section class="login-screen">
       <div class="login-hero">
-        <img src="/assets/equipment/IMG_1172.jpg" alt="" />
+        <img src="/assets/login-hero.svg" alt="" />
         <div class="login-topline">
           <div class="login-brand"><span>zy</span>Gym</div>
           <div class="login-live">今天 · ${escapeHtml(workout.name)}</div>
@@ -202,10 +202,6 @@ function renderLoginGate() {
           <div class="login-status">
             <span>历史记录</span>
             <strong>${state.sessions.length}</strong>
-          </div>
-          <div class="login-status">
-            <span>数据位置</span>
-            <strong>Cosmos</strong>
           </div>
         </div>
 
@@ -1483,12 +1479,12 @@ function statusRank(status = "available") {
 }
 
 function apiUrl(path) {
-  const base = (state.config.apiBaseUrl || "").replace(/\/$/, "");
+  const base = configuredApiBaseUrl();
   return `${base}/api${path}`;
 }
 
 function authBaseUrl() {
-  return (state.config.apiBaseUrl || "").replace(/\/$/, "");
+  return configuredApiBaseUrl();
 }
 
 function loginRequired() {
@@ -1497,6 +1493,12 @@ function loginRequired() {
 
 function loginUrl() {
   return `${authBaseUrl()}/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(window.location.href)}`;
+}
+
+function configuredApiBaseUrl() {
+  const base = (state.config.apiBaseUrl || "").replace(/\/$/, "");
+  if (window.location.hostname === "gym.zy8095.io" && base.includes("azurewebsites.net")) return "";
+  return base;
 }
 
 function currentWorkout() {

@@ -4,7 +4,7 @@ const API_ORIGIN_HOST = "func-zygym-zy8095.azurewebsites.net";
 export default {
   async fetch(request) {
     const url = new URL(request.url);
-    const isApi = url.pathname.startsWith("/api/") || url.pathname.startsWith("/.auth/");
+    const isApi = url.pathname.startsWith("/api/") || url.pathname === "/.auth" || url.pathname.startsWith("/.auth/");
     const originHost = isApi ? API_ORIGIN_HOST : STATIC_ORIGIN_HOST;
     const originUrl = new URL(request.url);
     originUrl.protocol = "https:";
@@ -31,6 +31,10 @@ export default {
           .replaceAll(`https://${originHost}`, `${url.protocol}//${url.host}`)
           .replaceAll(encodeURIComponent(`https://${originHost}`), encodeURIComponent(`${url.protocol}//${url.host}`))
       );
+    }
+    const setCookie = headers.get("Set-Cookie");
+    if (setCookie && isApi) {
+      headers.set("Set-Cookie", setCookie.replaceAll(`Domain=${originHost}`, `Domain=${url.hostname}`));
     }
 
     headers.set("X-ZyGym-Origin", originHost);

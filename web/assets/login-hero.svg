@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 1120" role="img" aria-label="Cinematic gym machine illustration">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#20251f"/>
+      <stop offset="0.48" stop-color="#0b0d0c"/>
+      <stop offset="1" stop-color="#141916"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="67%" cy="24%" r="48%">
+      <stop offset="0" stop-color="#b6f24a" stop-opacity="0.42"/>
+      <stop offset="0.44" stop-color="#b6f24a" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#b6f24a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="steel" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#59635b"/>
+      <stop offset="0.5" stop-color="#232a25"/>
+      <stop offset="1" stop-color="#090b0a"/>
+    </linearGradient>
+    <linearGradient id="lime" x1="0" x2="1">
+      <stop offset="0" stop-color="#d7ff66"/>
+      <stop offset="1" stop-color="#8fe63a"/>
+    </linearGradient>
+    <filter id="blur" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="16"/>
+    </filter>
+  </defs>
+
+  <rect width="860" height="1120" fill="url(#bg)"/>
+  <rect width="860" height="1120" fill="url(#glow)"/>
+
+  <g opacity="0.28" stroke="#f2f4f1" stroke-width="1">
+    <path d="M70 0v1120M190 0v1120M310 0v1120M430 0v1120M550 0v1120M670 0v1120M790 0v1120"/>
+    <path d="M0 120h860M0 240h860M0 360h860M0 480h860M0 600h860M0 720h860M0 840h860M0 960h860"/>
+  </g>
+
+  <g transform="translate(70 130)">
+    <ellipse cx="510" cy="70" rx="190" ry="76" fill="#b6f24a" opacity="0.13" filter="url(#blur)"/>
+    <path d="M123 660 315 205c22-54 77-87 134-80l167 20" fill="none" stroke="#2f3831" stroke-width="58" stroke-linecap="round"/>
+    <path d="M123 660 315 205c22-54 77-87 134-80l167 20" fill="none" stroke="#778377" stroke-width="10" stroke-linecap="round" opacity="0.55"/>
+
+    <path d="M86 770h560" stroke="#070807" stroke-width="76" stroke-linecap="round"/>
+    <path d="M102 740h515" stroke="url(#steel)" stroke-width="28" stroke-linecap="round"/>
+    <rect x="182" y="626" width="142" height="150" rx="18" fill="#151a16" stroke="#657062" stroke-width="8"/>
+    <rect x="334" y="596" width="250" height="68" rx="34" fill="#070807" stroke="#313a33" stroke-width="7"/>
+    <rect x="512" y="450" width="78" height="250" rx="38" fill="#121613" stroke="#515c52" stroke-width="7"/>
+
+    <g transform="translate(585 210)">
+      <circle cx="0" cy="0" r="112" fill="#080908" stroke="#596359" stroke-width="13"/>
+      <circle cx="0" cy="0" r="72" fill="#151a16" stroke="#2e382f" stroke-width="9"/>
+      <circle cx="0" cy="0" r="22" fill="url(#lime)"/>
+      <path d="M-108 0H-172" stroke="#d7ff66" stroke-width="14" stroke-linecap="round"/>
+    </g>
+
+    <g transform="translate(196 212)">
+      <rect x="0" y="0" width="170" height="254" rx="24" fill="#090b0a" stroke="#505b50" stroke-width="10"/>
+      <rect x="24" y="30" width="122" height="74" rx="12" fill="#1e251f" stroke="#b6f24a" stroke-opacity="0.28" stroke-width="4"/>
+      <path d="M42 142h86M42 174h62M42 206h98" stroke="#b6f24a" stroke-width="9" stroke-linecap="round"/>
+      <path d="M45 56h78M45 78h46" stroke="#e9f4df" stroke-width="7" stroke-linecap="round" opacity="0.55"/>
+    </g>
+
+    <path d="M420 350c80-12 142 26 185 115" fill="none" stroke="url(#lime)" stroke-width="18" stroke-linecap="round"/>
+    <path d="M405 366c66-6 116 28 148 98" fill="none" stroke="#f2f4f1" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
+    <path d="M92 862c170 34 365 28 620-12" stroke="#b6f24a" stroke-width="5" stroke-linecap="round" opacity="0.5"/>
+  </g>
+
+  <rect y="650" width="860" height="470" fill="url(#bg)" opacity="0.58"/>
+  <rect width="860" height="1120" fill="none" stroke="#b6f24a" stroke-opacity="0.09" stroke-width="2"/>
+</svg>

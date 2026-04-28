@@ -67,7 +67,7 @@ Cosmos:   cosmos-zygym-zy8095 / gymcheckin / items
 RG:       zyGym
 ```
 
-`gym.zy8095.io` 由 Cloudflare proxied CNAME + Worker route 提供。Worker 源码在 [infra/cloudflare-worker.js](/Users/zy8095/Documents/Codex/2026-04-23/chat/zyGym/infra/cloudflare-worker.js:1)，它只代理静态前端到 Azure Storage origin；API 仍直接走 Azure Function。
+`gym.zy8095.io` 由 Cloudflare proxied CNAME + Worker route 提供。Worker 源码在 [infra/cloudflare-worker.js](/Users/zy8095/Documents/Codex/2026-04-23/chat/zyGym/infra/cloudflare-worker.js:1)，静态前端代理到 Azure Storage origin，`/api/*` 和 `/.auth/*` 代理到 Azure Function，避免移动端浏览器拦截跨站登录 cookie。
 
 ## Azure 配置
 
@@ -75,13 +75,13 @@ RG:       zyGym
 
 ```json
 {
-  "apiBaseUrl": "https://func-zygym-zy8095.azurewebsites.net",
+  "apiBaseUrl": "",
   "useCredentials": true,
   "requireAuth": true
 }
 ```
 
-本地开发可以保留空字符串，让前端请求同源 `/api`。
+生产和本地开发都优先保留空字符串，让前端请求同源 `/api` 和 `/.auth`。
 
 Cosmos DB 容器建议：
 
