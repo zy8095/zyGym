@@ -275,6 +275,7 @@ h3 {
   object-fit: cover;
   border-radius: 8px;
   background: #ebe5da;
+  cursor: zoom-in;
 }
 
 .exercise-title-row {
@@ -407,6 +408,7 @@ h3 {
   width: 100%;
   height: 260px;
   object-fit: cover;
+  cursor: zoom-in;
 }
 
 .deck-media .target-badge {
@@ -644,6 +646,7 @@ textarea:focus {
   object-fit: cover;
   border-radius: 8px;
   background: #ebe5da;
+  cursor: zoom-in;
 }
 
 .equipment-card-head,
@@ -759,6 +762,55 @@ textarea:focus {
   border-radius: 8px;
   box-shadow: var(--shadow);
   font-weight: 800;
+}
+
+.image-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: max(18px, env(safe-area-inset-top)) 14px max(18px, env(safe-area-inset-bottom));
+}
+
+.image-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  min-height: 100%;
+  background: rgba(15, 20, 18, 0.72);
+  border: 0;
+  border-radius: 0;
+}
+
+.image-modal-content {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 10px;
+  width: min(100%, 760px);
+  max-height: 92vh;
+  padding: 12px;
+  background: #fffdf8;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 8px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+}
+
+.image-modal-content header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.image-modal-content img {
+  display: block;
+  width: 100%;
+  max-height: calc(92vh - 78px);
+  object-fit: contain;
+  border-radius: 8px;
+  background: #ebe5da;
 }
 
 .tabbar {

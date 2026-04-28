@@ -54,6 +54,16 @@ function bindShell() {
     toast(state.apiOnline ? "已同步 Cosmos/API" : "离线模式：使用本地缓存");
     render();
   });
+
+  app.addEventListener("click", (event) => {
+    const trigger = event.target.closest("[data-zoom-image]");
+    if (!trigger) return;
+    openImageZoom(trigger.dataset.zoomImage, trigger.dataset.zoomTitle || trigger.alt || "器械图片");
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeImageZoom();
+  });
 }
 
 async function loadEquipment() {
@@ -325,7 +335,7 @@ function renderStrengthDeck(workout, draftKey) {
 
     <article class="deck-card ${meta.deferred ? "deferred" : ""}">
       <div class="deck-media">
-        <img alt="${current.name}" src="${equipment.image}" />
+        <img alt="${current.name}" src="${equipment.image}" data-zoom-image="${equipment.image}" data-zoom-title="${escapeHtml(current.name)}" />
         <span class="target-badge">${doneForExercise}/${setTotal} 组</span>
       </div>
       <div class="deck-body">
@@ -524,7 +534,7 @@ function renderExercise(item, draft, workoutId) {
   return `
     <article class="exercise-card${stateClass}" data-exercise="${item.id}" data-equipment="${actualEquipmentId}">
       <div class="exercise-head">
-        <img class="equipment-img" alt="${item.name}" src="${equipment.image}" loading="lazy" />
+        <img class="equipment-img" alt="${item.name}" src="${equipment.image}" loading="lazy" data-zoom-image="${equipment.image}" data-zoom-title="${escapeHtml(item.name)}" />
         <div>
           <div class="exercise-title-row">
             <div>
@@ -741,7 +751,7 @@ function renderEquipment() {
 function renderEquipmentCard(item) {
   return `
     <article class="equipment-card">
-      <img class="equipment-card-img" alt="${item.label || item.name}" src="${item.image}" loading="lazy" />
+      <img class="equipment-card-img" alt="${item.label || item.name}" src="${item.image}" loading="lazy" data-zoom-image="${item.image}" data-zoom-title="${escapeHtml(item.label || item.name)}" />
       <div>
         <div class="equipment-card-head">
           <h3>${item.label || item.name}</h3>
@@ -763,7 +773,7 @@ function renderEquipmentCard(item) {
 function renderEquipmentEditor(item, items) {
   return `
     <article class="equipment-card editing" data-equipment-editor="${item.id}">
-      <img class="equipment-card-img" alt="${item.label || item.name}" src="${item.image}" loading="lazy" />
+      <img class="equipment-card-img" alt="${item.label || item.name}" src="${item.image}" loading="lazy" data-zoom-image="${item.image}" data-zoom-title="${escapeHtml(item.label || item.name)}" />
       <div class="equipment-form">
         <label>显示名<input name="label" value="${escapeHtml(item.label || "")}" /></label>
         <label>英文名<input name="name" value="${escapeHtml(item.name || "")}" /></label>
@@ -843,7 +853,7 @@ function renderPlan() {
       return `
         <article class="exercise-card">
           <div class="exercise-head">
-            <img class="equipment-img" alt="${item.name}" src="${equipment.image}" loading="lazy" />
+            <img class="equipment-img" alt="${item.name}" src="${equipment.image}" loading="lazy" data-zoom-image="${equipment.image}" data-zoom-title="${escapeHtml(item.name)}" />
             <div>
               <div class="exercise-title-row">
                 <h3>${item.name}</h3>
@@ -1457,6 +1467,33 @@ function toast(message) {
   node.textContent = message;
   document.body.append(node);
   setTimeout(() => node.remove(), 2200);
+}
+
+function openImageZoom(src, titleText) {
+  if (!src) return;
+  closeImageZoom();
+  const modal = document.createElement("div");
+  modal.className = "image-modal";
+  modal.setAttribute("role", "dialog");
+  modal.setAttribute("aria-modal", "true");
+  modal.innerHTML = `
+    <button class="image-modal-backdrop" type="button" data-close-image></button>
+    <div class="image-modal-content">
+      <header>
+        <strong>${escapeHtml(titleText || "器械图片")}</strong>
+        <button class="mini-button" type="button" data-close-image>关闭</button>
+      </header>
+      <img alt="${escapeHtml(titleText || "器械图片")}" src="${src}" />
+    </div>
+  `;
+  modal.querySelectorAll("[data-close-image]").forEach((button) => {
+    button.addEventListener("click", closeImageZoom);
+  });
+  document.body.append(modal);
+}
+
+function closeImageZoom() {
+  document.querySelector(".image-modal")?.remove();
 }
 
 function escapeHtml(value) {
