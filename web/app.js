@@ -3,8 +3,11 @@ const STORAGE_KEYS = {
   sessions: "gym-checkin:sessions",
   settings: "gym-checkin:settings",
   plan: "gym-checkin:plan",
+  authToken: "gym-checkin:auth-token",
+  authNonce: "gym-checkin:auth-nonce",
   equipment: "gym-checkin:equipment"
 };
+const APP_VERSION = "20260427j";
 
 const app = document.querySelector("#app");
 const title = document.querySelector("#workoutTitle");
@@ -23,7 +26,7 @@ const state = {
   editingEquipmentId: "",
   plan: null,
   user: null,
-  config: { apiBaseUrl: "", useCredentials: false, requireAuth: false },
+  config: { apiBaseUrl: "", useCredentials: false, requireAuth: false, authMode: "easy-auth", aadClientId: "" },
   apiOnline: false
 };
 
@@ -33,6 +36,7 @@ async function init() {
   bindShell();
   renderLoading();
   await loadConfig();
+  handleAadRedirect();
   await Promise.all([loadUser(), loadEquipment(), loadPlan(), loadRemoteSessions()]);
   state.selectedPlan = todayWorkoutId();
   render();
@@ -100,7 +104,7 @@ function applyEquipmentProfile(profile) {
 
 async function loadConfig() {
   try {
-    state.config = { ...state.config, ...(await fetchJson("/config.json")) };
+    state.config = { ...state.config, ...(await fetchJson(`/config.json?v=${APP_VERSION}`)) };
   } catch {
     state.config = { apiBaseUrl: "" };
   }
@@ -135,6 +139,10 @@ async function loadRemoteSessions(showErrors = false) {
 async function fetchJson(url, options) {
   const target = new URL(url, window.location.href);
   const fetchOptions = { ...(options || {}) };
+  const token = authToken();
+  if (token) {
+    fetchOptions.headers = { ...(fetchOptions.headers || {}), Authorization: `Bearer ${token}` };
+  }
   if (target.origin === window.location.origin || state.config.useCredentials) {
     fetchOptions.credentials = "include";
   }
@@ -1058,6 +1066,13 @@ function renderSettings() {
   });
 
   app.querySelector("[data-logout]").addEventListener("click", () => {
+    localStorage.removeItem(STORAGE_KEYS.authToken);
+    sessionStorage.removeItem(STORAGE_KEYS.authNonce);
+    if (state.config.authMode === "aad-token") {
+      state.user = { id: "local-user", name: "Local User", provider: "local", authenticated: false, authRequired: true };
+      render();
+      return;
+    }
     window.location.href = `${authBaseUrl()}/.auth/logout?post_logout_redirect_uri=${encodeURIComponent(window.location.href)}`;
   });
 
@@ -1492,13 +1507,55 @@ function loginRequired() {
 }
 
 function loginUrl() {
+  if (state.config.authMode === "aad-token") return aadLoginUrl();
   return `${authBaseUrl()}/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(window.location.href)}`;
 }
 
 function configuredApiBaseUrl() {
   const base = (state.config.apiBaseUrl || "").replace(/\/$/, "");
-  if (window.location.hostname === "gym.zy8095.io" && base.includes("azurewebsites.net")) return "";
+  if (state.config.authMode !== "aad-token" && window.location.hostname === "gym.zy8095.io" && base.includes("azurewebsites.net")) return "";
   return base;
+}
+
+function authToken() {
+  return localStorage.getItem(STORAGE_KEYS.authToken) || "";
+}
+
+function aadLoginUrl() {
+  const nonce = crypto.randomUUID();
+  sessionStorage.setItem(STORAGE_KEYS.authNonce, nonce);
+  const params = new URLSearchParams({
+    client_id: state.config.aadClientId || "e5b9f8d7-d88a-4bf8-aa85-cd2f53a39e6b",
+    response_type: "id_token",
+    redirect_uri: window.location.origin + window.location.pathname,
+    response_mode: "fragment",
+    scope: "openid profile email",
+    nonce,
+    state: window.location.href
+  });
+  return `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params.toString()}`;
+}
+
+function handleAadRedirect() {
+  if (state.config.authMode !== "aad-token" || !window.location.hash.includes("id_token=")) return;
+  const params = new URLSearchParams(window.location.hash.slice(1));
+  const token = params.get("id_token");
+  const tokenPayload = decodeJwtPayload(token);
+  const expectedNonce = sessionStorage.getItem(STORAGE_KEYS.authNonce);
+  if (token && tokenPayload?.nonce === expectedNonce) {
+    localStorage.setItem(STORAGE_KEYS.authToken, token);
+    sessionStorage.removeItem(STORAGE_KEYS.authNonce);
+  }
+  history.replaceState(null, "", window.location.pathname + window.location.search);
+}
+
+function decodeJwtPayload(token) {
+  try {
+    const payload = token.split(".")[1];
+    return JSON.parse(atob(payload.replaceAll("-", "+").replaceAll("_", "/")));
+  } catch {
+    return null;
+  }
 }
 
 function currentWorkout() {

@@ -3,7 +3,7 @@ const { getStore } = require("./store");
 const { getDisplayUser, getUser } = require("./user");
 
 async function sessionsHandler(req) {
-  const auth = requireUser(req);
+  const auth = await requireUser(req);
   if (auth.response) return auth.response;
   const userId = auth.userId;
   const store = getStore();
@@ -34,7 +34,7 @@ async function sessionsHandler(req) {
 }
 
 async function plansHandler(req) {
-  const auth = requireUser(req);
+  const auth = await requireUser(req);
   if (auth.response) return auth.response;
   const userId = auth.userId;
   const store = getStore();
@@ -64,7 +64,7 @@ async function plansHandler(req) {
 }
 
 async function progressHandler(req) {
-  const auth = requireUser(req);
+  const auth = await requireUser(req);
   if (auth.response) return auth.response;
   const userId = auth.userId;
   const store = getStore();
@@ -81,7 +81,7 @@ async function progressHandler(req) {
 }
 
 async function equipmentHandler(req) {
-  const auth = requireUser(req);
+  const auth = await requireUser(req);
   if (auth.response) return auth.response;
   const userId = auth.userId;
   const store = getStore();
@@ -104,7 +104,7 @@ async function equipmentHandler(req) {
 }
 
 async function settingsHandler(req) {
-  const auth = requireUser(req);
+  const auth = await requireUser(req);
   if (auth.response) return auth.response;
   const userId = auth.userId;
   const store = getStore();
@@ -124,7 +124,7 @@ async function settingsHandler(req) {
 }
 
 async function meHandler(req) {
-  return json(200, { authRequired: isAuthRequired(), user: getDisplayUser(req) });
+  return json(200, { authRequired: isAuthRequired(), user: await getDisplayUser(req) });
 }
 
 async function healthHandler() {
@@ -140,8 +140,8 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function requireUser(req) {
-  const user = getUser(req);
+async function requireUser(req) {
+  const user = await getUser(req);
   if (user?.id) return { userId: user.id, user };
   if (!isAuthRequired()) {
     return {

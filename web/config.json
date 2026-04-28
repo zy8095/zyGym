@@ -1,5 +1,7 @@
 {
-  "apiBaseUrl": "",
-  "useCredentials": true,
-  "requireAuth": true
+  "apiBaseUrl": "https://func-zygym-zy8095.azurewebsites.net",
+  "useCredentials": false,
+  "requireAuth": true,
+  "authMode": "aad-token",
+  "aadClientId": "e5b9f8d7-d88a-4bf8-aa85-cd2f53a39e6b"
 }
