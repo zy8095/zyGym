@@ -1522,7 +1522,7 @@ function authToken() {
 }
 
 function aadLoginUrl() {
-  const nonce = crypto.randomUUID();
+  const nonce = crypto.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
   sessionStorage.setItem(STORAGE_KEYS.authNonce, nonce);
   const params = new URLSearchParams({
     client_id: state.config.aadClientId || "e5b9f8d7-d88a-4bf8-aa85-cd2f53a39e6b",
@@ -1552,7 +1552,8 @@ function handleAadRedirect() {
 function decodeJwtPayload(token) {
   try {
     const payload = token.split(".")[1];
-    return JSON.parse(atob(payload.replaceAll("-", "+").replaceAll("_", "/")));
+    const padded = payload.padEnd(payload.length + ((4 - (payload.length % 4)) % 4), "=");
+    return JSON.parse(atob(padded.replaceAll("-", "+").replaceAll("_", "/")));
   } catch {
     return null;
   }
