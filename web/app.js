@@ -146,8 +146,10 @@ async function fetchJson(url, options) {
 function render() {
   const date = new Date();
   todayLabel.textContent = `${formatWeekday(date)} · ${formatDate(date)}`;
+  const shouldShowLogin = loginRequired() && !state.user?.authenticated;
+  document.body.classList.toggle("login-mode", shouldShowLogin);
 
-  if (loginRequired() && !state.user?.authenticated) {
+  if (shouldShowLogin) {
     title.textContent = "登录";
     tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.route === "settings"));
     renderLoginGate();
@@ -167,24 +169,52 @@ function render() {
 }
 
 function renderLoginGate() {
+  const workout = currentWorkout();
+  const isStrength = workout.kind === "strength";
+  const exercises = Array.isArray(workout.exercises) ? workout.exercises : [];
+  const exerciseCount = isStrength ? exercises.length : 0;
+  const setCount = isStrength ? exercises.reduce((sum, item) => sum + item.sets, 0) : 0;
   app.innerHTML = `
-    <section class="panel hero-card">
-      <div>
+    <section class="login-screen">
+      <div class="login-hero">
+        <img src="/assets/equipment/IMG_1172.jpg" alt="" />
+        <div class="login-topline">
+          <div class="login-brand"><span>zy</span>Gym</div>
+          <div class="login-live">今天 · ${escapeHtml(workout.name)}</div>
+        </div>
+        <div class="login-caption">
+          <span>${formatWeekday(new Date())}</span>
+          <span>${isStrength ? `${exerciseCount} 项 · ${setCount} 组` : escapeHtml(workout.focus || "恢复")}</span>
+        </div>
+      </div>
+
+      <div class="login-panel">
+        <div class="login-handle"></div>
         <p class="eyebrow">zyGym</p>
-        <h2>先登录再训练</h2>
-        <p class="muted">你的计划、设备库和训练记录都会按 Microsoft 账号分开保存。</p>
-      </div>
-      <div class="metric-grid">
-        <div class="metric"><strong>私有</strong><span class="metric-label">数据</span></div>
-        <div class="metric"><strong>Cosmos</strong><span class="metric-label">存储</span></div>
-        <div class="metric"><strong>MI</strong><span class="metric-label">后端</span></div>
-      </div>
-    </section>
-    <section class="panel">
-      <h2>账号</h2>
-      <p class="cue">当前状态：未登录。登录完成后会自动回到这个页面。</p>
-      <div class="action-row">
-        <button class="primary-button" type="button" data-login>Microsoft 登录</button>
+        <h2>回到训练</h2>
+        <p class="login-copy">登录后继续今天的计划、器械偏好和重量记录。</p>
+
+        <div class="login-status-grid">
+          <div class="login-status">
+            <span>本周力量</span>
+            <strong>${weeklyStrengthCount()}</strong>
+          </div>
+          <div class="login-status">
+            <span>历史记录</span>
+            <strong>${state.sessions.length}</strong>
+          </div>
+          <div class="login-status">
+            <span>数据位置</span>
+            <strong>Cosmos</strong>
+          </div>
+        </div>
+
+        <button class="login-button" type="button" data-login>
+          <span class="ms-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+          <span>使用 Microsoft 继续</span>
+        </button>
+
+        <p class="login-footnote">计划、记录和器械偏好只属于你</p>
       </div>
     </section>
   `;

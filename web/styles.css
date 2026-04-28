@@ -33,6 +33,10 @@ body {
     var(--bg);
 }
 
+body.login-mode {
+  background: #0b0d0c;
+}
+
 button,
 input,
 textarea,
@@ -49,6 +53,21 @@ button {
   min-height: 100vh;
   margin: 0 auto;
   padding: max(18px, env(safe-area-inset-top)) 16px calc(92px + env(safe-area-inset-bottom));
+}
+
+body.login-mode .shell {
+  width: min(100%, 430px);
+  padding: 0;
+  background: #0b0d0c;
+}
+
+body.login-mode .topbar,
+body.login-mode .tabbar {
+  display: none;
+}
+
+body.login-mode #app {
+  min-height: 100vh;
 }
 
 .topbar {
@@ -204,6 +223,198 @@ h3 {
 .metric-label {
   font-size: 12px;
   font-weight: 750;
+}
+
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #0b0d0c;
+  color: #f2f4f1;
+}
+
+.login-hero {
+  position: relative;
+  min-height: 55vh;
+  overflow: hidden;
+  background: #1a1f1c;
+}
+
+.login-hero img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 42%;
+  filter: saturate(0.85) contrast(1.08) brightness(0.82);
+  transform: scale(1.02);
+}
+
+.login-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 72% 28%, rgba(182, 242, 74, 0.16), transparent 48%),
+    linear-gradient(180deg, rgba(11, 13, 12, 0.18), rgba(11, 13, 12, 0.08) 34%, rgba(11, 13, 12, 0.75) 78%, #0b0d0c);
+}
+
+.login-topline,
+.login-caption {
+  position: absolute;
+  z-index: 1;
+  right: 18px;
+  left: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.login-topline {
+  top: max(22px, env(safe-area-inset-top));
+}
+
+.login-brand {
+  color: #fff;
+  font-size: 28px;
+  font-weight: 900;
+}
+
+.login-brand span {
+  color: rgba(255, 255, 255, 0.56);
+  font-weight: 650;
+}
+
+.login-live {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  max-width: 50%;
+  padding: 0 12px;
+  overflow: hidden;
+  color: #f2f4f1;
+  background: rgba(182, 242, 74, 0.12);
+  border: 1px solid rgba(182, 242, 74, 0.42);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  backdrop-filter: blur(10px);
+}
+
+.login-caption {
+  bottom: 34px;
+  color: rgba(242, 244, 241, 0.68);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.login-panel {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-top: -24px;
+  padding: 20px 18px calc(26px + env(safe-area-inset-bottom));
+  background: #111513;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px 8px 0 0;
+  box-shadow: 0 -18px 42px rgba(0, 0, 0, 0.42);
+}
+
+.login-handle {
+  width: 42px;
+  height: 4px;
+  margin: 0 auto 18px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 4px;
+}
+
+.login-panel .eyebrow {
+  color: #b6f24a;
+}
+
+.login-panel h2 {
+  margin-bottom: 8px;
+  color: #fff;
+  font-size: 36px;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.login-copy {
+  margin-bottom: 18px;
+  color: rgba(242, 244, 241, 0.62);
+  font-size: 14px;
+}
+
+.login-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.login-status {
+  min-height: 78px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+}
+
+.login-status span,
+.login-footnote {
+  color: rgba(242, 244, 241, 0.48);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.login-status strong {
+  display: block;
+  margin-top: 8px;
+  color: #f2f4f1;
+  font-size: 22px;
+}
+
+.login-button {
+  min-height: 54px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: auto;
+  padding: 0 16px;
+  color: #10130f;
+  background: #b6f24a;
+  border: 0;
+  border-radius: 8px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.ms-mark {
+  display: grid;
+  grid-template-columns: repeat(2, 8px);
+  gap: 2px;
+}
+
+.ms-mark i {
+  display: block;
+  width: 8px;
+  height: 8px;
+  background: #10130f;
+}
+
+.login-footnote {
+  margin: 14px 0 0;
+  text-align: center;
 }
 
 .muted {

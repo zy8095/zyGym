@@ -1,9 +1,9 @@
-const CACHE_NAME = "gym-checkin-v9";
+const CACHE_NAME = "gym-checkin-v10";
 const ASSETS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260427f",
-  "/app.js?v=20260427f",
+  "/styles.css?v=20260427g",
+  "/app.js?v=20260427g",
   "/manifest.webmanifest",
   "/assets/icon.svg",
   "/config.json",
