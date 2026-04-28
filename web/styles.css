@@ -474,6 +474,24 @@ h3 {
   font-weight: 850;
 }
 
+.add-exercise-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px;
+  background: #f7f4ed;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.add-exercise-panel label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 850;
+}
+
 .queue-list {
   display: grid;
   gap: 7px;
@@ -553,6 +571,8 @@ h3 {
 
 .set-row input,
 .deck-set-row input,
+.add-exercise-panel input,
+.add-exercise-panel select,
 .equipment-form input,
 .equipment-form select,
 .settings-grid input,
@@ -570,6 +590,8 @@ textarea {
 
 .set-row input:focus,
 .deck-set-row input:focus,
+.add-exercise-panel input:focus,
+.add-exercise-panel select:focus,
 .equipment-form input:focus,
 .equipment-form select:focus,
 .settings-grid input:focus,
@@ -863,6 +885,10 @@ textarea:focus {
 
   .settings-grid.two {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .settings-grid.three {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 

@@ -244,7 +244,7 @@ function renderStrength(workout, isToday = false) {
     return;
   }
 
-  const visibleExercises = orderedExercises(workout.exercises, draft).filter((item) => activeSetCount(item, draft.lowEnergy) > 0);
+  const visibleExercises = orderedExercises(workoutExercises(workout, draft), draft).filter((item) => activeSetCount(item, draft.lowEnergy) > 0);
   const setCount = visibleExercises.reduce((sum, item) => sum + activeSetCount(item, draft.lowEnergy), 0);
   const completeCount = countCompleteSets(draft);
   const lastSame = state.sessions.find((session) => session.workoutId === workout.id);
@@ -289,7 +289,7 @@ function renderStrength(workout, isToday = false) {
 
 function renderStrengthDeck(workout, draftKey) {
   const draft = state.draft[draftKey];
-  const visibleExercises = orderedExercises(workout.exercises, draft).filter((item) => activeSetCount(item, draft.lowEnergy) > 0);
+  const visibleExercises = orderedExercises(workoutExercises(workout, draft), draft).filter((item) => activeSetCount(item, draft.lowEnergy) > 0);
   const setCount = visibleExercises.reduce((sum, item) => sum + activeSetCount(item, draft.lowEnergy), 0);
   const completeCount = countVisibleCompleteSets(visibleExercises, draft);
   const lastSame = state.sessions.find((session) => session.workoutId === workout.id);
@@ -357,10 +357,12 @@ function renderStrengthDeck(workout, draftKey) {
           <button class="secondary-button" type="button" data-next-current>先去下个</button>
           <button class="secondary-button" type="button" data-replace-current>换机器</button>
           <button class="secondary-button" type="button" data-issue-current>有问题</button>
+          <button class="secondary-button" type="button" data-add-exercise>加项目</button>
         </div>
 
         ${meta.showIssue ? renderIssuePanel(current) : ""}
         ${meta.choosingReplacement ? renderReplacementPanel(current, actualEquipmentId, options) : ""}
+        ${draft.addingExercise ? renderAddExercisePanel() : ""}
       </div>
     </article>
 
@@ -393,6 +395,34 @@ function renderIssuePanel(item) {
   `;
 }
 
+function renderAddExercisePanel() {
+  const items = equipmentItems().filter((item) => item.status !== "broken" && item.status !== "avoid");
+  return `
+    <div class="add-exercise-panel" data-add-exercise-panel>
+      <label>
+        机器
+        <select name="equipmentId">
+          ${items.map((item) => `<option value="${item.id}">${item.label || item.name}</option>`).join("")}
+        </select>
+      </label>
+      <label>
+        动作名
+        <input name="name" placeholder="不填就用机器名" />
+      </label>
+      <div class="settings-grid three">
+        <label>组数<input inputmode="numeric" name="sets" value="2" /></label>
+        <label>最少<input inputmode="numeric" name="repMin" value="10" /></label>
+        <label>最多<input inputmode="numeric" name="repMax" value="12" /></label>
+      </div>
+      <p class="cue">临时加项只记录到今天，默认 2 组就好，留 2-3 次余力。</p>
+      <div class="action-row">
+        <button class="secondary-button" type="button" data-save-extra-exercise>添加到今天</button>
+        <button class="secondary-button" type="button" data-cancel-extra-exercise>取消</button>
+      </div>
+    </div>
+  `;
+}
+
 function renderQueueItem(item, draft) {
   const setTotal = activeSetCount(item, draft.lowEnergy);
   const done = completeSetsForExercise(item, draft);
@@ -402,7 +432,7 @@ function renderQueueItem(item, draft) {
     <button class="queue-item ${active ? "active" : ""} ${done >= setTotal ? "done" : ""}" type="button" data-focus-exercise="${item.id}">
       <span>${item.name}</span>
       <strong>${done}/${setTotal}</strong>
-      ${meta.deferred ? "<small>稍后</small>" : ""}
+      ${item.adHoc ? "<small>加项</small>" : meta.deferred ? "<small>稍后</small>" : ""}
     </button>
   `;
 }
@@ -466,6 +496,7 @@ function bindDeckStrength(workout, draftKey, current, setIndex) {
     const meta = exerciseMeta(draft, current.id);
     meta.choosingReplacement = !meta.choosingReplacement;
     meta.showIssue = false;
+    draft.addingExercise = false;
     persistDraft();
     render();
   });
@@ -474,6 +505,28 @@ function bindDeckStrength(workout, draftKey, current, setIndex) {
     const meta = exerciseMeta(draft, current.id);
     meta.showIssue = !meta.showIssue;
     meta.choosingReplacement = false;
+    draft.addingExercise = false;
+    persistDraft();
+    render();
+  });
+
+  app.querySelector("[data-add-exercise]").addEventListener("click", () => {
+    const meta = exerciseMeta(draft, current.id);
+    draft.addingExercise = !draft.addingExercise;
+    meta.showIssue = false;
+    meta.choosingReplacement = false;
+    persistDraft();
+    render();
+  });
+
+  app.querySelector("[data-cancel-extra-exercise]")?.addEventListener("click", () => {
+    draft.addingExercise = false;
+    persistDraft();
+    render();
+  });
+
+  app.querySelector("[data-save-extra-exercise]")?.addEventListener("click", () => {
+    addExtraExerciseFromPanel(draft);
     persistDraft();
     render();
   });
@@ -1016,7 +1069,7 @@ async function finishWorkout(workout, draftKey) {
     completedAt: new Date().toISOString(),
     lowEnergy: Boolean(draft.lowEnergy),
     notes: draft.notes || "",
-    exercises: workout.exercises
+    exercises: workoutExercises(workout, draft)
       .filter((item) => activeSetCount(item, draft.lowEnergy) > 0)
       .map((item) => {
         const meta = exerciseMeta(draft, item.id);
@@ -1032,6 +1085,7 @@ async function finishWorkout(workout, draftKey) {
           plannedEquipmentName: plannedEquipment.name,
           replaced: actualEquipmentId !== item.equipmentId,
           deferred: Boolean(meta.deferred),
+          adHoc: Boolean(item.adHoc),
           sets: (draft.exercises[item.id] || []).slice(0, activeSetCount(item, draft.lowEnergy)).map((set, index) => ({
             set: index + 1,
             weight: set.weight || "",
@@ -1120,14 +1174,21 @@ function createDraft(workout) {
   workout.exercises.forEach((item) => {
     exercises[item.id] = Array.from({ length: item.sets }, () => ({ weight: "", reps: "", rir: "", done: false }));
   });
-  return { workoutId: workout.id, lowEnergy: false, notes: "", exercises, exerciseMeta: {} };
+  return { workoutId: workout.id, lowEnergy: false, notes: "", exercises, exerciseMeta: {}, extraExercises: [], addingExercise: false };
 }
 
 function ensureDraftShape(draft) {
   draft.exercises ||= {};
   draft.exerciseMeta ||= {};
+  draft.extraExercises ||= [];
+  draft.addingExercise = Boolean(draft.addingExercise);
   draft.activeExerciseId ||= "";
   return draft;
+}
+
+function workoutExercises(workout, draft) {
+  ensureDraftShape(draft);
+  return [...(workout.exercises || []), ...draft.extraExercises];
 }
 
 function exerciseMeta(draft, exerciseId) {
@@ -1177,7 +1238,7 @@ function countVisibleCompleteSets(visibleExercises, draft) {
 }
 
 function focusNextExercise(workout, draft, current) {
-  const visibleExercises = orderedExercises(workout.exercises, draft).filter((item) => activeSetCount(item, draft.lowEnergy) > 0);
+  const visibleExercises = orderedExercises(workoutExercises(workout, draft), draft).filter((item) => activeSetCount(item, draft.lowEnergy) > 0);
   const currentIndex = visibleExercises.findIndex((item) => item.id === current.id);
   const after = visibleExercises.slice(currentIndex + 1).find((item) => !exerciseMeta(draft, item.id).deferred && completeSetsForExercise(item, draft) < activeSetCount(item, draft.lowEnergy));
   const before = visibleExercises.slice(0, currentIndex + 1).find((item) => !exerciseMeta(draft, item.id).deferred && completeSetsForExercise(item, draft) < activeSetCount(item, draft.lowEnergy));
@@ -1187,7 +1248,7 @@ function focusNextExercise(workout, draft, current) {
 
 function handleIssueAction(workout, draft, exerciseId, action) {
   const meta = exerciseMeta(draft, exerciseId);
-  const item = workout.exercises.find((exercise) => exercise.id === exerciseId);
+  const item = workoutExercises(workout, draft).find((exercise) => exercise.id === exerciseId);
   if (!item) return;
 
   meta.showIssue = false;
@@ -1222,6 +1283,44 @@ function appendDraftNote(draft, text) {
   draft.notes = existing ? `${existing}\n${text}` : text;
 }
 
+function addExtraExerciseFromPanel(draft) {
+  const panel = app.querySelector("[data-add-exercise-panel]");
+  if (!panel) return;
+
+  const equipmentId = panel.querySelector("[name=equipmentId]").value;
+  const equipment = equipmentFor(equipmentId);
+  const sets = clampNumber(panel.querySelector("[name=sets]").value, 1, 6, 2);
+  const repMin = clampNumber(panel.querySelector("[name=repMin]").value, 1, 50, 10);
+  const repMax = Math.max(repMin, clampNumber(panel.querySelector("[name=repMax]").value, 1, 50, 12));
+  const rawName = panel.querySelector("[name=name]").value.trim();
+  const id = `extra-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  const item = {
+    id,
+    name: rawName || equipment.label || equipment.name || "临时加项",
+    equipmentId,
+    alternateEquipmentIds: equipment.alternateEquipmentIds || [],
+    sets,
+    repMin,
+    repMax,
+    cue: "临时加项，保留 2-3 次余力，别练到崩。",
+    priority: "extra",
+    adHoc: true
+  };
+
+  draft.extraExercises.push(item);
+  draft.exercises[id] = Array.from({ length: sets }, () => ({ weight: "", reps: "", rir: "", done: false }));
+  draft.activeExerciseId = id;
+  draft.addingExercise = false;
+  appendDraftNote(draft, `临时加项: ${item.name}`);
+  toast("已加到今天");
+}
+
+function clampNumber(value, min, max, fallback) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.max(min, Math.min(max, Math.round(number)));
+}
+
 function ensureSetEntry(draft, exerciseId, index) {
   draft.exercises[exerciseId] ||= [];
   draft.exercises[exerciseId][index] ||= { weight: "", reps: "", rir: "", done: false };
@@ -1230,6 +1329,7 @@ function ensureSetEntry(draft, exerciseId, index) {
 
 function activeSetCount(item, lowEnergy) {
   if (!lowEnergy) return item.sets;
+  if (item.priority === "extra" || item.adHoc) return item.sets;
   if (item.priority === "main") return item.sets;
   if (item.priority === "support") return Math.min(item.sets, 2);
   return 0;
@@ -1241,13 +1341,13 @@ function countCompleteSets(draft) {
 
 function refreshTodayMetrics(workout, draft) {
   const metrics = app.querySelectorAll(".metric strong");
-  const visibleExercises = workout.exercises.filter((item) => activeSetCount(item, draft.lowEnergy) > 0);
+  const visibleExercises = workoutExercises(workout, draft).filter((item) => activeSetCount(item, draft.lowEnergy) > 0);
   if (metrics[0]) metrics[0].textContent = countCompleteSets(draft);
   if (metrics[1]) metrics[1].textContent = visibleExercises.reduce((sum, item) => sum + activeSetCount(item, draft.lowEnergy), 0);
 }
 
 function fillLastWeights(workout, draft) {
-  workout.exercises.forEach((item) => {
+  workoutExercises(workout, draft).forEach((item) => {
     const last = latestExercise(item.id, currentEquipmentId(item, draft), workout.id);
     if (!last) return;
     (last.sets || []).forEach((set, index) => {
