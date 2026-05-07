@@ -7,7 +7,7 @@ const STORAGE_KEYS = {
   authNonce: "gym-checkin:auth-nonce",
   equipment: "gym-checkin:equipment"
 };
-const APP_VERSION = "20260427j";
+const APP_VERSION = "20260506a";
 
 const app = document.querySelector("#app");
 const title = document.querySelector("#workoutTitle");
@@ -126,7 +126,7 @@ async function loadPlan(showErrors = false) {
 async function loadRemoteSessions(showErrors = false) {
   try {
     const data = await fetchJson(apiUrl("/sessions?limit=200"));
-    state.sessions = Array.isArray(data.sessions) ? data.sessions : [];
+    state.sessions = mergeRemoteSessions(Array.isArray(data.sessions) ? data.sessions : [], loadLocalSessions());
     state.apiOnline = true;
     localStorage.setItem(STORAGE_KEYS.sessions, JSON.stringify(state.sessions));
   } catch (error) {
@@ -344,6 +344,9 @@ function renderStrengthDeck(workout, draftKey) {
   const doneForExercise = completeSetsForExercise(current, draft);
   const options = replacementOptions(current, actualEquipmentId);
   const note = progressionNote(current, workout.id, actualEquipmentId);
+  const equipmentLabel = equipment.label || equipment.name || actualEquipmentId;
+  title.textContent = current.name;
+  todayLabel.textContent = `${equipmentLabel} · ${formatDate(new Date())}`;
 
   app.innerHTML = `
     <section class="panel hero-card">
@@ -390,6 +393,7 @@ function renderStrengthDeck(workout, draftKey) {
           <button class="primary-button" type="button" data-complete-current>完成这一组</button>
           <button class="secondary-button" type="button" data-next-current>先去下个</button>
           <button class="secondary-button" type="button" data-replace-current>换机器</button>
+          ${actualEquipmentId !== current.equipmentId ? `<button class="secondary-button" type="button" data-reset-current>用原机器</button>` : ""}
           <button class="secondary-button" type="button" data-issue-current>有问题</button>
           <button class="secondary-button" type="button" data-add-exercise>加项目</button>
         </div>
@@ -489,10 +493,10 @@ function bindDeckStrength(workout, draftKey, current, setIndex) {
   });
 
   app.querySelector("[data-fill-last]").addEventListener("click", () => {
-    fillLastWeights(workout, draft);
+    const filled = fillLastWeights(workout, draft);
     persistDraft();
     render();
-    toast("已带入上次重量");
+    toast(filled ? `已带入 ${filled} 组上次重量` : "还没有可带入的上次重量");
   });
 
   app.querySelectorAll(".deck-set-row input").forEach((input) => {
@@ -533,6 +537,19 @@ function bindDeckStrength(workout, draftKey, current, setIndex) {
     draft.addingExercise = false;
     persistDraft();
     render();
+  });
+
+  app.querySelector("[data-reset-current]")?.addEventListener("click", () => {
+    const meta = exerciseMeta(draft, current.id);
+    delete meta.equipmentId;
+    meta.deferred = false;
+    meta.choosingReplacement = false;
+    meta.showIssue = false;
+    draft.addingExercise = false;
+    draft.activeExerciseId = current.id;
+    persistDraft();
+    render();
+    toast("已切回原机器");
   });
 
   app.querySelector("[data-issue-current]").addEventListener("click", () => {
@@ -697,10 +714,10 @@ function bindStrength(workout, draftKey) {
   });
 
   app.querySelector("[data-fill-last]").addEventListener("click", () => {
-    fillLastWeights(workout, draft);
+    const filled = fillLastWeights(workout, draft);
     persistDraft();
     render();
-    toast("已带入上次重量");
+    toast(filled ? `已带入 ${filled} 组上次重量` : "还没有可带入的上次重量");
   });
 
   app.querySelectorAll("[data-defer-exercise]").forEach((button) => {
@@ -1167,11 +1184,14 @@ async function saveSimpleWorkout(workout) {
 
 async function saveSession(session) {
   try {
-    await fetchJson(apiUrl("/sessions"), {
+    const data = await fetchJson(apiUrl("/sessions"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(session)
     });
+    const saved = data.session || session;
+    state.sessions = mergeRemoteSessions([saved, ...state.sessions.filter((item) => sessionIdentity(item) !== sessionIdentity(saved))], loadLocalSessions());
+    localStorage.setItem(STORAGE_KEYS.sessions, JSON.stringify(state.sessions));
     state.apiOnline = true;
   } catch {
     state.apiOnline = false;
@@ -1388,33 +1408,50 @@ function refreshTodayMetrics(workout, draft) {
 }
 
 function fillLastWeights(workout, draft) {
+  let filled = 0;
   workoutExercises(workout, draft).forEach((item) => {
-    const last = latestExercise(item.id, currentEquipmentId(item, draft), workout.id);
+    const last = latestExerciseForWeights(item.id, currentEquipmentId(item, draft), workout.id);
     if (!last) return;
-    (last.sets || []).forEach((set, index) => {
+    (last.sets || []).slice(0, activeSetCount(item, draft.lowEnergy)).forEach((set, index) => {
+      if (set.weight === undefined || set.weight === null || set.weight === "") return;
       const entry = ensureSetEntry(draft, item.id, index);
-      entry.weight = set.weight || entry.weight || "";
+      entry.weight = String(set.weight);
+      filled += 1;
     });
   });
+  return filled;
 }
 
 function progressionNote(item, workoutId, equipmentId = item.equipmentId) {
-  const last = latestExercise(item.id, equipmentId, workoutId);
+  const last = latestExercise(item.id, equipmentId, workoutId) || latestExercise(item.id, "", workoutId);
   if (!last) return "首次记录：先找稳定重量";
 
   const topSet = topSetFor(last.sets || []);
   const doneSets = (last.sets || []).filter((set) => set.done);
-  const topText = topSet ? `上次这台 ${topSet.weight} x ${topSet.reps}` : "上次已记录";
+  const sourceText = last.equipmentId === equipmentId ? "这台" : "同动作";
+  const topText = topSet ? `上次${sourceText} ${topSet.weight} x ${topSet.reps}` : "上次已记录";
   const allTop = doneSets.length >= item.sets && doneSets.every((set) => Number(set.reps) >= item.repMax);
   return allTop ? `${topText} · 下次加一档` : `${topText} · 先补次数`;
 }
 
 function latestExercise(exerciseId, equipmentId, workoutId) {
-  const session = state.sessions.find((item) =>
-    item.workoutId === workoutId &&
-    (item.exercises || []).some((exerciseItem) => exerciseItem.id === exerciseId && exerciseItem.equipmentId === equipmentId)
+  for (const session of sortSessions(state.sessions)) {
+    if (workoutId && session.workoutId !== workoutId) continue;
+    const exercise = (session.exercises || []).find((item) =>
+      item.id === exerciseId && (!equipmentId || item.equipmentId === equipmentId)
+    );
+    if (exercise) return exercise;
+  }
+  return null;
+}
+
+function latestExerciseForWeights(exerciseId, equipmentId, workoutId) {
+  return (
+    latestExercise(exerciseId, equipmentId, workoutId) ||
+    latestExercise(exerciseId, "", workoutId) ||
+    latestExercise(exerciseId, equipmentId, "") ||
+    latestExercise(exerciseId, "", "")
   );
-  return session?.exercises?.find((item) => item.id === exerciseId && item.equipmentId === equipmentId);
 }
 
 function topSetFor(sets) {
@@ -1607,6 +1644,27 @@ function persistDraft() {
 
 function loadLocalSessions() {
   return readJson(STORAGE_KEYS.sessions, []);
+}
+
+function mergeRemoteSessions(remoteSessions, cachedSessions) {
+  const remote = Array.isArray(remoteSessions) ? remoteSessions : [];
+  const remoteIds = new Set(remote.map(sessionIdentity));
+  const pendingLocal = (Array.isArray(cachedSessions) ? cachedSessions : []).filter((session) =>
+    session.savedLocalOnly && !remoteIds.has(sessionIdentity(session))
+  );
+  return sortSessions([...pendingLocal, ...remote]);
+}
+
+function sortSessions(sessions) {
+  return [...(sessions || [])].sort((a, b) => sessionTime(b) - sessionTime(a));
+}
+
+function sessionTime(session) {
+  return new Date(session?.completedAt || session?.date || 0).getTime() || 0;
+}
+
+function sessionIdentity(session) {
+  return session?.id || `${session?.completedAt || session?.date || ""}:${session?.workoutId || ""}:${session?.workoutName || ""}`;
 }
 
 function loadSettings() {
